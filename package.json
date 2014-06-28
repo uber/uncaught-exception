@@ -11,20 +11,29 @@
     "url": "https://github.com/uber/uncaught-exception/issues",
     "email": "raynos2@gmail.com"
   },
-  "dependencies": {},
+  "dependencies": {
+    "error": "^4.0.0",
+    "istanbul": "^0.2.13"
+  },
   "collaborators": [
-    { "name": "David ellis" },
-    { "name": "Amos barreto" }
+    {
+      "name": "David ellis"
+    },
+    {
+      "name": "Amos barreto"
+    }
   ],
   "devDependencies": {
-    "jshint": "~2.3.0",
+    "assert-tap": "~0.1.4",
+    "fake-fs": "^0.3.0",
     "istanbul": "~0.1.46",
-    "xtend": "~2.1.1",
-    "assert-tap": "~0.1.4"
+    "jshint": "~2.3.0",
+    "tap-spec": "^0.2.0",
+    "xtend": "~2.1.1"
   },
   "scripts": {
-    "test": "npm run jshint && node ./test 2>&1 | tee ./test/test.js.tap",
-    "jshint": "jshint --verbose --config jshint.json .",
+    "test": "npm run jshint && node ./test/index.js | tap-spec",
+    "jshint": "jshint --verbose .",
     "cover": "istanbul cover --report none --print detail ./test",
     "view-cover": "istanbul report html && open ./coverage/index.html"
   },
