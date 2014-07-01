@@ -1,6 +1,7 @@
 var globalFs = require('fs');
 var once = require('once');
 var process = require('process');
+var domain = require('domain');
 var globalSetTimeout = require('timers').setTimeout;
 var globalClearTimeout = require('timers').clearTimeout;
 
@@ -9,6 +10,11 @@ var errors = require('./errors.js');
 
 var LOGGER_TIMEOUT = 30 * 1000;
 var SHUTDOWN_TIMEOUT = 30 * 1000;
+var PRE_LOGGING_ERROR_STATE = 'pre.logging.error';
+var LOGGING_ERROR_STATE = 'logging.error';
+var PRE_GRACEFUL_SHUTDOWN_STATE = 'pre.graceful.shutdown';
+var GRACEFUL_SHUTDOWN_STATE = 'graceful.shutdown';
+var POST_GRACEFUL_SHUTDOWN_STATE = 'post.graceful.shutdown';
 
 module.exports = uncaught;
 
@@ -56,24 +62,32 @@ function uncaught(options) {
         var timers = {};
         var loggerCallback = once(onlogged);
         var shutdownCallback = once(onshutdown);
+        var d = domain.create();
+        var currentState = PRE_LOGGING_ERROR_STATE;
+
+        d.on('error', onDomainError);
 
         timers.logger = setTimeout(onlogtimeout, loggerTimeout);
 
-        var tuple = tryCatch(function tryIt() {
-            logger.fatal(prefix + 'Uncaught Exception: ' + type,
-                error, loggerCallback);
+        d.run(function logError() {
+            var tuple = tryCatch(function tryIt() {
+                currentState = LOGGING_ERROR_STATE;
+                logger.fatal(prefix + 'Uncaught Exception: ' +
+                    type, error, loggerCallback);
+            });
+
+            var loggerError = tuple[0];
+            if (loggerError) {
+                loggerCallback(errors.LoggerThrownException({
+                    errorMessage: loggerError.message,
+                    errorType: loggerError.type,
+                    errorStack: loggerError.stack
+                }));
+            }
         });
 
-        var loggerError = tuple[0];
-        if (loggerError) {
-            loggerCallback(errors.LoggerThrownException({
-                errorMessage: loggerError.message,
-                errorType: loggerError.type,
-                errorStack: loggerError.stack
-            }));
-        }
-
         function onlogged(err) {
+            currentState = PRE_GRACEFUL_SHUTDOWN_STATE;
             if (err && backupFile) {
                 var str = stringifyError(
                     error, 'uncaught.exception');
@@ -91,6 +105,7 @@ function uncaught(options) {
                 shutdownTimeout);
 
             var tuple2 = tryCatch(function tryIt() {
+                currentState = GRACEFUL_SHUTDOWN_STATE;
                 gracefulShutdown(shutdownCallback);
             });
 
@@ -105,6 +120,7 @@ function uncaught(options) {
         }
 
         function onshutdown(err) {
+            currentState = POST_GRACEFUL_SHUTDOWN_STATE;
             if (err && backupFile) {
                 var str = stringifyError(
                     error, 'uncaught.exception');
@@ -122,6 +138,37 @@ function uncaught(options) {
             // exception in preAbort then your fucked, abort().
             tryCatch(preAbort);
             process.abort();
+        }
+
+        function onDomainError(domainError) {
+            if (currentState === PRE_LOGGING_ERROR_STATE ||
+                currentState === LOGGING_ERROR_STATE
+            ) {
+                loggerCallback(errors.LoggerAsyncError({
+                    errorMessage: domainError.message,
+                    errorType: domainError.type,
+                    errorStack: domainError.stack,
+                    currentState: currentState
+                }));
+            } else if (
+                currentState === PRE_GRACEFUL_SHUTDOWN_STATE ||
+                currentState === GRACEFUL_SHUTDOWN_STATE
+            ) {
+                shutdownCallback(errors.ShutdownAsyncError({
+                    errorMessage: domainError.message,
+                    errorType: domainError.type,
+                    errorStack: domainError.stack,
+                    currentState: currentState
+                }));
+            } else if (
+                currentState === POST_GRACEFUL_SHUTDOWN_STATE
+            ) {
+                // if something failed in after shutdown
+                // then we are in a terrible state, shutdown
+                // hard.
+                tryCatch(preAbort);
+                process.abort();
+            }
         }
 
         function onlogtimeout() {

@@ -49,11 +49,35 @@ var ShutdownThrownException = TypedError({
         'stack: {errorStack}.\n'
 });
 
+var LoggerAsyncError = TypedError({
+    type: 'uncaught-exception.logger.async-error',
+    message: 'uncaught-exception: An unexpected exception ' +
+        'happened whilst calling `logger.fatal()`.\n' +
+        'Expected no exception to happen.\n' +
+        'message: {errorMessage}.\n' +
+        'type: {errorType}.\n' +
+        'stack: {errorStack}.\n' +
+        'currentState: {currentState}.\n'
+});
+
+var ShutdownAsyncError = TypedError({
+    type: 'uncaught-exception.shutdown.async-error',
+    message: 'uncaught-exception: An unexpected exception ' +
+        'happened whilst calling `gracefulShutdown()`.\n' +
+        'Expected no exception to happen.\n' +
+        'message: {errorMessage}.\n' +
+        'type: {errorType}.\n' +
+        'stack: {errorStack}.\n' +
+        'currentState: {currentState}.\n'
+});
+
 module.exports = {
     LoggerRequired: LoggerRequired,
     LoggerMethodRequired: LoggerMethodRequired,
     LoggerTimeoutError: LoggerTimeoutError,
     ShutdownTimeoutError: ShutdownTimeoutError,
     LoggerThrownException: LoggerThrownException,
-    ShutdownThrownException: ShutdownThrownException
+    ShutdownThrownException: ShutdownThrownException,
+    LoggerAsyncError: LoggerAsyncError,
+    ShutdownAsyncError: ShutdownAsyncError
 };

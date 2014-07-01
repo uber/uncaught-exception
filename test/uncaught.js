@@ -36,6 +36,10 @@ function uncaught(opts) {
 
     function remove() {
         process.removeListener('uncaughtException', onError);
+        // bust out of the domain to avoid abort();
+        if (process.domain) {
+            process.domain.exit();
+        }
     }
 }
 
