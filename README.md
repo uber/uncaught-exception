@@ -57,6 +57,12 @@ http.createServer(function (req, res) {
 })
 ```
 
+## Todo
+
+ - gaurd againts thrown exceptions
+ - gaurd againts uncaughts inside the logger or shutdown
+ - gaurd againts hanging loggers & hanging shutdown
+
 ## Installation
 
 `npm install uncaught-exception`
