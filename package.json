@@ -5,7 +5,7 @@
   "keywords": [],
   "author": "Raynos <raynos2@gmail.com>",
   "repository": "git://github.com/uber/uncaught-exception.git",
-  "main": "index",
+  "main": "uncaught",
   "homepage": "https://github.com/uber/uncaught-exception",
   "bugs": {
     "url": "https://github.com/uber/uncaught-exception/issues",
