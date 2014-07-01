@@ -97,7 +97,7 @@ opts.preAbort = function preAbort() {
     if (coverageFn.length === 0) {
         return;
     } else if (coverageFn.length > 1) {
-        console.error('wtf :S');
+        console.error('Unexpected multiple functions');
         process.exit(24);
     }
 
