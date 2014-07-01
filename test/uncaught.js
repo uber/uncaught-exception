@@ -124,7 +124,14 @@ test('writes to backupFile on error', function t(assert) {
     var logger = {
         fatal: function fatal(message, error, cb) {
             cb(new Error('cant log'));
+        }
+    };
+    var fs = FakeFs();
+    fs.dir('/foo');
 
+    var remove = uncaught({
+        logger: logger,
+        gracefulShutdown: function shutdown() {
             var bool = fs.existsSync('/foo/bar');
             assert.equal(bool, true);
 
@@ -143,13 +150,7 @@ test('writes to backupFile on error', function t(assert) {
 
             remove();
             assert.end();
-        }
-    };
-    var fs = FakeFs();
-    fs.dir('/foo');
-
-    var remove = uncaught({
-        logger: logger,
+        },
         fs: fs,
         backupFile: '/foo/bar'
     });
@@ -306,6 +307,55 @@ test('handles exceptions for logger', function t(assert) {
 
     process.nextTick(function throwIt() {
         throw new Error('exception error');
+    });
+});
+
+test('handles async exceptions for logger', function t(assert) {
+    var logger = {
+        fatal: function fatal() {
+            // simulate a bug
+            process.nextTick(function throwIt() {
+                throw new Error('bug in logger implementation');
+            });
+        }
+    };
+
+    var fs = FakeFs();
+    fs.dir('/foo');
+
+    var remove = uncaught({
+        logger: logger,
+        fs: fs,
+        backupFile: '/foo/bar',
+        gracefulShutdown: function shutIt() {
+            assert.ok(true);
+
+            assert.ok(fs.existsSync('/foo/bar'));
+
+            var buf = fs.readFileSync('/foo/bar');
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'async exception error');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.logger.async-error');
+            assert.equal(line2._uncaughtType,
+                'logger.failure');
+
+            remove();
+            assert.end();
+        }
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('async exception error');
     });
 });
 

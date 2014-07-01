@@ -33,6 +33,17 @@ if (opts.errorLogger) {
     };
 }
 
+if (opts.asyncErrorLogger) {
+    opts.logger = {
+        fatal: function fatal() {
+            // simulate buggy logger
+            process.nextTick(function throwIt() {
+                throw new Error('async oops');
+            });
+        }
+    };
+}
+
 if (opts.timeoutLogger) {
     opts.logger = {
         fatal: function fatal() {
@@ -72,6 +83,33 @@ if (!opts.logger) {
 if (opts.badShutdown) {
     opts.gracefulShutdown = function gracefulShutdown(cb) {
         cb(new Error('oops in graceful shutdown'));
+    };
+}
+
+if (opts.naughtyShutdown) {
+    opts.gracefulShutdown = function gracefulShutdown(cb) {
+        // Create a fake error object that causes an
+        // unexpected thrown exception in the uncaught
+        // exception implementation and check we still abort
+        var error = {};
+        Object.defineProperty(error, 'message', {
+            get: function throwIt() {
+                throw new Error('suprise bug!');
+            }
+        });
+
+        console.log('gracefulShutdown called');
+
+        cb(error);
+    };
+}
+
+if (opts.asyncBadShutdown) {
+    opts.gracefulShutdown = function gracefulShutdown() {
+        // simulate a buggy graceful shutdown
+        process.nextTick(function throwIt() {
+            throw new Error('async buggy shutdown');
+        });
     };
 }
 

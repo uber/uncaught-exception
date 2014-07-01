@@ -114,6 +114,42 @@ test('writes to backupFile for failing logger', function t(assert) {
     });
 });
 
+test('async failing logger', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        asyncErrorLogger: true,
+        message: 'async error logger',
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stdout.indexOf('async error logger'), -1);
+        assert.equal(stderr.indexOf('async error logger'), -1);
+
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'async error logger');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.logger.async-error');
+            assert.equal(line2._uncaughtType, 'logger.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
 test('writes to backupFile for failing shutdown', function t(assert) {
     var loc = path.join(__dirname, 'backupFile.log');
 
@@ -146,7 +182,82 @@ test('writes to backupFile for failing shutdown', function t(assert) {
 
             assert.equal(line2.message,
                 'oops in graceful shutdown');
-            assert.equal(line2._uncaughtType, 'shutdown.failure');
+            assert.equal(line2._uncaughtType,
+                'shutdown.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
+test('handles a naughty shutdown', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        message: 'crash with naughty shutdown',
+        backupFile: loc,
+        naughtyShutdown: true
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(
+            stdout.indexOf('crash with naughty shutdown'), -1);
+        assert.equal(
+            stderr.indexOf('crash with naughty shutdown'), -1);
+
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 1);
+            var line1 = JSON.parse(lines[0]);
+
+            assert.equal(line1.message,
+                'crash with naughty shutdown');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
+test('async failing shutdown', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        message: 'async failing shutdown',
+        backupFile: loc,
+        asyncBadShutdown: true
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(
+            stdout.indexOf('async failing shutdown'), -1);
+        assert.equal(
+            stderr.indexOf('async failing shutdown'), -1);
+
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message,
+                'async failing shutdown');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.shutdown.async-error');
+            assert.equal(line2._uncaughtType,
+                'shutdown.failure');
 
             fs.unlink(loc, assert.end);
         });

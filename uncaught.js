@@ -4,6 +4,7 @@ var process = require('process');
 var domain = require('domain');
 var globalSetTimeout = require('timers').setTimeout;
 var globalClearTimeout = require('timers').clearTimeout;
+var jsonStringify = require('json-stringify-safe');
 
 var tryCatch = require('./lib/try-catch-it.js');
 var errors = require('./errors.js');
@@ -60,10 +61,20 @@ function uncaught(options) {
     function uncaughtListener(error) {
         var type = error.type || '';
         var timers = {};
-        var loggerCallback = once(onlogged);
-        var shutdownCallback = once(onshutdown);
+        var loggerCallback = asyncOnce(onlogged);
+        var shutdownCallback = asyncOnce(onshutdown);
         var d = domain.create();
         var currentState = PRE_LOGGING_ERROR_STATE;
+
+        var errorCallbacks = {};
+        errorCallbacks[PRE_LOGGING_ERROR_STATE] = loggerCallback;
+        errorCallbacks[LOGGING_ERROR_STATE] = loggerCallback;
+        errorCallbacks[PRE_GRACEFUL_SHUTDOWN_STATE] =
+            shutdownCallback;
+        errorCallbacks[GRACEFUL_SHUTDOWN_STATE] =
+            shutdownCallback;
+        errorCallbacks[POST_GRACEFUL_SHUTDOWN_STATE] =
+            terminate;
 
         d.on('error', onDomainError);
 
@@ -78,7 +89,8 @@ function uncaught(options) {
 
             var loggerError = tuple[0];
             if (loggerError) {
-                loggerCallback(errors.LoggerThrownException({
+                var errorCallback = errorCallbacks[currentState];
+                errorCallback(errors.LoggerThrownException({
                     errorMessage: loggerError.message,
                     errorType: loggerError.type,
                     errorStack: loggerError.stack
@@ -88,6 +100,10 @@ function uncaught(options) {
 
         function onlogged(err) {
             currentState = PRE_GRACEFUL_SHUTDOWN_STATE;
+            if (timers.logger) {
+                clearTimeout(timers.logger);
+            }
+
             if (err && backupFile) {
                 var str = stringifyError(
                     error, 'uncaught.exception');
@@ -95,10 +111,6 @@ function uncaught(options) {
                 var str2 = stringifyError(
                     err, 'logger.failure');
                 safeAppend(fs, backupFile, str2);
-            }
-
-            if (timers.logger) {
-                clearTimeout(timers.logger);
             }
 
             timers.shutdown = setTimeout(onshutdowntimeout,
@@ -111,7 +123,8 @@ function uncaught(options) {
 
             var shutdownError = tuple2[0];
             if (shutdownError) {
-                shutdownCallback(errors.ShutdownThrownException({
+                var errorCallback = errorCallbacks[currentState];
+                errorCallback(errors.ShutdownThrownException({
                     errorMessage: shutdownError.message,
                     errorType: shutdownError.type,
                     errorStack: shutdownError.stack
@@ -121,6 +134,10 @@ function uncaught(options) {
 
         function onshutdown(err) {
             currentState = POST_GRACEFUL_SHUTDOWN_STATE;
+            if (timers.shutdown) {
+                clearTimeout(timers.shutdown);
+            }
+
             if (err && backupFile) {
                 var str = stringifyError(
                     error, 'uncaught.exception');
@@ -130,10 +147,10 @@ function uncaught(options) {
                 safeAppend(fs, backupFile, str2);
             }
 
-            if (timers.shutdown) {
-                clearTimeout(timers.shutdown);
-            }
+            terminate();
+        }
 
+        function terminate() {
             // try and swallow the exception, if you have an
             // exception in preAbort then your fucked, abort().
             tryCatch(preAbort);
@@ -141,10 +158,12 @@ function uncaught(options) {
         }
 
         function onDomainError(domainError) {
+            var errorCallback = errorCallbacks[currentState];
+
             if (currentState === PRE_LOGGING_ERROR_STATE ||
                 currentState === LOGGING_ERROR_STATE
             ) {
-                loggerCallback(errors.LoggerAsyncError({
+                errorCallback(errors.LoggerAsyncError({
                     errorMessage: domainError.message,
                     errorType: domainError.type,
                     errorStack: domainError.stack,
@@ -154,7 +173,7 @@ function uncaught(options) {
                 currentState === PRE_GRACEFUL_SHUTDOWN_STATE ||
                 currentState === GRACEFUL_SHUTDOWN_STATE
             ) {
-                shutdownCallback(errors.ShutdownAsyncError({
+                errorCallback(errors.ShutdownAsyncError({
                     errorMessage: domainError.message,
                     errorType: domainError.type,
                     errorStack: domainError.stack,
@@ -166,8 +185,7 @@ function uncaught(options) {
                 // if something failed in after shutdown
                 // then we are in a terrible state, shutdown
                 // hard.
-                tryCatch(preAbort);
-                process.abort();
+                errorCallback();
             }
         }
 
@@ -189,12 +207,23 @@ function uncaught(options) {
     }
 }
 
+function asyncOnce(fn) {
+    return once(function defer() {
+        var args = arguments;
+        var self = this;
+
+        process.nextTick(function callIt() {
+            fn.apply(self, args);
+        });
+    });
+}
+
 function asyncNoop(cb) {
     process.nextTick(cb);
 }
 
 function stringifyError(error, uncaughtType) {
-    return JSON.stringify({
+    return jsonStringify({
         message: error.message,
         type: error.type,
         _uncaughtType: uncaughtType,
