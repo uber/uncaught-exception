@@ -20,7 +20,9 @@ function uncaught(opts) {
 
     if (!opts.setTimeout) {
         opts.setTimeout = function setTimeout() {
-            // Lul.
+            // fake timeouts to do nothing. This is really
+            // bad it avoids invoking the process.abort()
+            // in the source code
 
             // must return a number
             return 1;

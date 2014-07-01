@@ -51,13 +51,12 @@ if (opts.thrownLogger) {
 }
 
 if (opts.lateTimeoutLogger) {
-    opts.loggerTimeout = 500;
     opts.logger = {
-        fatal: function fatal(message, opts, cb) {
+        fatal: function fatal(message, options, cb) {
             // simulate a really slow logger
             setTimeout(function delay() {
                 cb();
-            }, 1000);
+            }, opts.loggerTimeout * 2);
         }
     };
 }
@@ -82,13 +81,19 @@ if (opts.timeoutShutdown) {
     };
 }
 
+if (opts.thrownShutdown) {
+    opts.gracefulShutdown = function gracefulShutdown() {
+        // simulate a buggy graceful shutdown
+        throw new Error('buggy graceful shutdown');
+    };
+}
+
 if (opts.lateTimeoutShutdown) {
-    opts.shutdownTimeout = 500;
     opts.gracefulShutdown = function timeoutShutdown(cb) {
         // simulate a really show shutdown
         setTimeout(function delay() {
             cb();
-        }, 1000);
+        }, opts.shutdownTimeout * 2);
     };
 }
 

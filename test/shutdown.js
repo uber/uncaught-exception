@@ -17,6 +17,7 @@ var count = 0;
 // child process will only exit 128 + 6 if it dumps core
 // to enable core dumps run `ulimit -c unlimited`
 var SIGABRT_CODE = 134;
+var SHUTDOWN_TIMEOUT = 50;
 
 function spawnChild(opts, callback) {
     /*jshint camelcase: false */
@@ -159,7 +160,7 @@ test('handles a timeout logger', function t(assert) {
         timeoutLogger: true,
         message: 'timeout logger',
         backupFile: loc,
-        loggerTimeout: 500
+        loggerTimeout: SHUTDOWN_TIMEOUT
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
         assert.equal(err.code, SIGABRT_CODE);
@@ -232,7 +233,7 @@ test('handles a timeout shutdown', function t(assert) {
         timeoutShutdown: true,
         message: 'timeout shutdown',
         backupFile: loc,
-        shutdownTimeout: 500
+        shutdownTimeout: SHUTDOWN_TIMEOUT
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
         assert.equal(err.code, SIGABRT_CODE);
@@ -263,11 +264,49 @@ test('handles a timeout shutdown', function t(assert) {
     });
 });
 
+test('handles a thrown shutdown', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        thrownShutdown: true,
+        message: 'thrown shutdown',
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stdout.indexOf('thrown shutdown'), -1);
+        assert.equal(stderr.indexOf('thrown shutdown'), -1);
+
+        fs.readFile(loc, function onfile(err, buf) {
+            assert.ifError(err);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'thrown shutdown');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.shutdown.threw');
+            assert.equal(line2._uncaughtType,
+                'shutdown.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
 test('handles a timeout + late succeed', function t(assert) {
     var loc = path.join(__dirname, 'backupFile.log');
 
     spawnChild({
         lateTimeoutLogger: true,
+        loggerTimeout: SHUTDOWN_TIMEOUT,
         message: 'late timeout logger',
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
@@ -305,6 +344,7 @@ test('handles a shutdown + late succeed', function t(assert) {
     spawnChild({
         lateTimeoutShutdown: true,
         message: 'late shutdown logger',
+        shutdownTimeout: SHUTDOWN_TIMEOUT,
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);

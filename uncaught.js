@@ -39,10 +39,20 @@ var ShutdownTimeoutError = TypedError({
         'Expected it to finish within {time} ms.\n'
 });
 
-var LoggerThrowException = TypedError({
+var LoggerThrownException = TypedError({
     type: 'uncaught-exception.logger.threw',
     message: 'uncaught-exception: the logger.fatal() method ' +
         'threw an exception.\n' +
+        'Expected it to not throw at all.\n' +
+        'message: {errorMessage}.\n' +
+        'type: {errorType}.\n' +
+        'stack: {errorStack}.\n'
+});
+
+var ShutdownThrownException = TypedError({
+    type: 'uncaught-exception.shutdown.threw',
+    message: 'uncaught-exception: the gracefulShutdown() ' +
+        'function threw an exception.\n' +
         'Expected it to not throw at all.\n' +
         'message: {errorMessage}.\n' +
         'type: {errorType}.\n' +
@@ -105,7 +115,7 @@ function uncaught(options) {
 
         var loggerError = tuple[0];
         if (loggerError) {
-            loggerCallback(LoggerThrowException({
+            loggerCallback(LoggerThrownException({
                 errorMessage: loggerError.message,
                 errorType: loggerError.type,
                 errorStack: loggerError.stack
@@ -129,7 +139,18 @@ function uncaught(options) {
             timers.shutdown = setTimeout(onshutdowntimeout,
                 shutdownTimeout);
 
-            gracefulShutdown(shutdownCallback);
+            var tuple = tryCatch(function tryIt() {
+                gracefulShutdown(shutdownCallback);
+            });
+
+            var shutdownError = tuple[0];
+            if (shutdownError) {
+                shutdownCallback(ShutdownThrownException({
+                    errorMessage: shutdownError.message,
+                    errorType: shutdownError.type,
+                    errorStack: shutdownError.stack
+                }));
+            }
         }
 
         function onshutdown(err) {
