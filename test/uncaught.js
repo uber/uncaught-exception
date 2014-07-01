@@ -2,7 +2,9 @@
 var test = require('assert-tap').test;
 var process = require('process');
 var FakeFs = require('fake-fs');
+var Timer = require('time-mock');
 
+var tryCatch = require('../lib/try-catch-it.js');
 var uncaughtException = require('../uncaught.js');
 
 function getListener() {
@@ -12,6 +14,18 @@ function getListener() {
 function uncaught(opts) {
     function remove() {
         process.removeListener('uncaughtException', onError);
+    }
+
+    if (!opts.gracefulShutdown) {
+        opts.gracefulShutdown = function gracefulShutdown() {
+            // we don't want to abort in a test
+        };
+    }
+
+    if (!opts.setTimeout) {
+        opts.setTimeout = function setTimeout() {
+            // Lul.
+        };
     }
 
     var onError = uncaughtException(opts);
@@ -27,7 +41,9 @@ test('uncaughtException is a function', function t(assert) {
 
 test('uncaughtException with listener disabled does nothing',
     function t(assert) {
-        var onError = uncaughtException({ logger: true });
+        var onError = uncaughtException({
+            logger: { fatal: function f() {} }
+        });
 
         assert.equal(typeof onError, 'function');
 
@@ -38,7 +54,9 @@ test('uncaughtException with listener disabled does nothing',
     });
 
 test('uncaughtException adds a listener', function t(assert) {
-    var remove = uncaught({ logger: true });
+    var remove = uncaught({
+        logger: { fatal: function f() {} }
+    });
 
     var ls = getListener();
     assert.equal(ls.length, 1);
@@ -85,7 +103,7 @@ test('uncaughtException prefix', function t(assert) {
 
     var remove = uncaught({
         logger: logger,
-        prefix: 'some-server:'
+        prefix: 'some-server: '
     });
 
     process.nextTick(function throwIt() {
@@ -102,9 +120,17 @@ test('writes to backupFile on error', function t(assert) {
             assert.equal(bool, true);
 
             var content = fs.readFileSync('/foo/bar', 'utf8');
-            var body = JSON.parse(content);
-            assert.equal(body.message, 'error test');
-            assert.ok(body.stack);
+            var lines = content.trim().split('\n');
+
+            assert.equal(lines.length, 2);
+
+            var line1 = JSON.parse(lines[0]);
+            assert.equal(line1.message, 'error test');
+            assert.ok(line1.stack);
+
+            var line2 = JSON.parse(lines[1]);
+            assert.equal(line2.message, 'cant log');
+            assert.ok(line2.stack);
 
             remove();
             assert.end();
@@ -112,8 +138,6 @@ test('writes to backupFile on error', function t(assert) {
     };
     var fs = FakeFs();
     fs.dir('/foo');
-
-    fs.appendFileSync = fs.writeFileSync;
 
     var remove = uncaught({
         logger: logger,
@@ -141,8 +165,6 @@ test('does not write undefined backupFile', function t(assert) {
 
     var fs = FakeFs();
 
-    fs.appendFileSync = fs.writeFileSync;
-
     var remove = uncaught({
         logger: logger,
         fs: fs
@@ -151,4 +173,89 @@ test('does not write undefined backupFile', function t(assert) {
     process.nextTick(function throwIt() {
         throw new Error('test error');
     });
+});
+
+test('handles disk failures', function t(assert) {
+    var logger = {
+        fatal: function fatal(message, error, cb) {
+            cb(new Error('logger error'));
+        }
+    };
+
+    var fs = FakeFs();
+
+    var remove = uncaught({
+        logger: logger,
+        fs: fs,
+        backupFile: '/foo/bar',
+        gracefulShutdown: function shutIt() {
+            assert.ok(true);
+
+            remove();
+            assert.end();
+        }
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('error test');
+    });
+});
+
+test('handles timeout for logger', function t(assert) {
+    var logger = {
+        fatal: function fatal() {
+            // do nothing. simulate a timeout
+
+            // fast forward 30 seconds
+            timer.advance(30000);
+        }
+    };
+
+    var timer = Timer(0);
+
+    var remove = uncaught({
+        logger: logger,
+        setTimeout: timer.setTimeout,
+        clearTimeout: timer.clearTimeout,
+        gracefulShutdown: function shutIt() {
+            assert.ok(true);
+
+            remove();
+            assert.end();
+        }
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('lulzy error');
+    });
+});
+
+test('throws exception without options', function t(assert) {
+    var tuple = tryCatch(function throwIt() {
+        uncaughtException();
+    });
+
+    assert.ok(tuple[0]);
+    assert.equal(tuple[0].type,
+        'uncaught-exception.logger.required');
+
+    var tuple2 = tryCatch(function throwIt() {
+        uncaughtException({});
+    });
+
+    assert.ok(tuple2[0]);
+    assert.equal(tuple2[0].type,
+        'uncaught-exception.logger.required');
+
+    var tuple3 = tryCatch(function throwIt() {
+        uncaughtException({
+            logger: { error: function e() {} }
+        });
+    });
+
+    assert.ok(tuple3[0]);
+    assert.equal(tuple3[0].type,
+        'uncaught-exception.logger.methodsRequired');
+
+    assert.end();
 });

@@ -22,6 +22,54 @@ if (opts.consoleLogger) {
     };
 }
 
+if (opts.errorLogger) {
+    opts.logger = {
+        fatal: function fatal(message, opts, cb) {
+            cb(new Error('oops in logger.fatal()'));
+        }
+    };
+}
+
+if (!opts.logger) {
+    opts.logger = {
+        fatal: function fatal(message, opts, cb) {
+            cb();
+        }
+    };
+}
+
+if (opts.badShutdown) {
+    opts.gracefulShutdown = function gracefulShutdown(cb) {
+        cb(new Error('oops in graceful shutdown'));
+    };
+}
+
+// implement preAbort to get the code coverage OUT of this
+// process
+opts.preAbort = function preAbort() {
+    var listeners = process.listeners('exit');
+
+    var coverageFn = listeners.filter(function check(fn) {
+        var listener = fn && fn.listener;
+        return String(listener).indexOf(
+            'No coverage information was collected') !== -1;
+    });
+
+    if (coverageFn.length === 0) {
+        return;
+    } else if (coverageFn.length > 1) {
+        console.error('wtf :S');
+        process.exit(24);
+    }
+
+    var listener = coverageFn[0].listener;
+    listener();
+
+    if (opts.throwInAbort) {
+        throw new Error('such troll, so face.');
+    }
+};
+
 var onError = uncaughtException(opts);
 process.on('uncaughtException', onError);
 

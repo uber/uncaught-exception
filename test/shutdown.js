@@ -1,6 +1,7 @@
 var test = require('assert-tap').test;
 var path = require('path');
 var exec = require('child_process').exec;
+var fs = require('fs');
 
 /* SHUTDOWN tests.
 
@@ -15,15 +16,17 @@ var count = 0;
 
 function spawnChild(opts, callback) {
     /*jshint camelcase: false */
-    var isIstanbul = process.env.running_under_istanbul;
+    // var isIstanbul = process.env.running_under_istanbul;
+    var isIstanbul = true;
 
     var cmd;
     // istanbul can't actually cover processes that crash.
     // so there is little point as it doesn't add much coverage
     // in the future it will https://github.com/gotwarlost/istanbul/issues/127
     if (isIstanbul) {
-        cmd = 'istanbul cover ' + shutdownChild + ' --report none' +
-            ' --dir ./coverage/shutdown-child' + count + ' -- \'' +
+        cmd = 'node_modules/.bin/istanbul cover ' + shutdownChild +
+            ' --report cobertura' +
+            ' --dir coverage/shutdown-child' + count + ' -- \'' +
             JSON.stringify(opts) + '\'';
     } else {
         cmd = 'node ' + shutdownChild + ' \'' + JSON.stringify(opts) + '\'';
@@ -32,11 +35,11 @@ function spawnChild(opts, callback) {
     count++;
     exec(cmd, {
         timeout: 5000,
-        cwd: __dirname
+        cwd: path.join(__dirname, '..')
     }, callback);
 }
 
-test('shutsdown cleanly without crashOnException', function t(assert) {
+test('a child process is aborted', function t(assert) {
     spawnChild({
         consoleLogger: true,
         message: 'crash cleanly'
@@ -53,84 +56,95 @@ test('shutsdown cleanly without crashOnException', function t(assert) {
     });
 });
 
-// test('shutsdown with crashOnException', function (assert) {
-//     spawnChild({
-//         message: 'crash on exception',
-//         crashOnException: true
-//     }, function (err, stdout, stderr) {
-//         assert.ok(err);
-//         assert.equal(err.code, 1);
+test('throwing in preAbort', function t(assert) {
+    spawnChild({
+        consoleLogger: true,
+        message: 'really crash',
+        throwInAbort: true
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, 134);
 
-//         assert.notEqual(err.message.indexOf('Error: crash on exception'), -1);
+        assert.notEqual(
+            stderr.indexOf('Uncaught Exception: '), -1);
+        assert.notEqual(
+            stderr.indexOf('really crash'), -1);
 
-//         assert.equal(stdout, '');
-//         assert.notEqual(stderr.indexOf('throw err;'), -1);
+        assert.end();
+    });
+});
 
-//         assert.end();
-//     });
-// });
+test('writes to backupFile for failing logger', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
 
-// test('shutsdown with logger & crashOnException', function (assert) {
-//     spawnChild({
-//         message: 'logged crash on exception',
-//         crashOnException: true,
-//         consoleLogger: true
-//     }, function (err, stdout, stderr) {
-//         assert.ok(err);
-//         assert.equal(err.code, 1);
+    spawnChild({
+        errorLogger: true,
+        message: 'crash with file',
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, 134);
 
-//         assert.notEqual(
-//             err.message.indexOf('Error: logged crash on exception'), -1);
+        assert.equal(stdout.indexOf('crash with file'), -1);
+        assert.equal(stderr.indexOf('crash with file'), -1);
 
-//         var captureError = stderr.indexOf('uncaught err = logged crash');
-//         var thrown = stderr.indexOf('throw err;');
-//         assert.notEqual(captureError, -1);
-//         assert.notEqual(thrown, -1);
-//         assert.ok(captureError < thrown);
+        fs.readFile(loc, function onfile(err, buf) {
+            assert.ifError(err);
 
-//         assert.end();
-//     });
-// });
+            var lines = String(buf).trim().split('\n');
 
-// test('shutsdown with subject & logger & crashOnException', function (assert) {
-//     spawnChild({
-//         message: 'logged crash on excep.',
-//         crashOnException: true,
-//         subject: true,
-//         consoleLogger: true
-//     }, function (err, stdout, stderr) {
-//         assert.ok(err);
-//         assert.equal(err.code, 1);
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
 
-//         assert.notEqual(
-//             err.message.indexOf('Error: logged crash on excep.'), -1);
+            assert.equal(line1.message, 'crash with file');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
 
-//         var captureError = stderr.indexOf('Error: logged crash on excep.');
-//         var thrown = stderr.indexOf('throw err;');
-//         assert.notEqual(captureError, -1);
-//         assert.notEqual(thrown, -1);
-//         assert.ok(captureError < thrown);
+            assert.equal(line2.message,
+                'oops in logger.fatal()');
+            assert.equal(line2._uncaughtType, 'logger.failure');
 
-//         assert.end();
-//     });
-// });
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
 
-// test('shutdown with subject & no logger & crashOnException', function (assert) {
-//     spawnChild({
-//         message: 'logged crash on excep.',
-//         crashOnException: true,
-//         subject: true
-//     }, function (err, stdout, stderr) {
-//         assert.ok(err);
-//         assert.equal(err.code, 1);
+test('writes to backupFile for failing shutdown', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
 
-//         assert.notEqual(
-//             err.message.indexOf('Error: logged crash on excep.'), -1);
+    spawnChild({
+        message: 'crash with bad shutdown',
+        backupFile: loc,
+        badShutdown: true
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, 134);
 
-//         assert.equal(stdout, '');
-//         assert.notEqual(stderr.indexOf('throw err;'), -1);
+        assert.equal(
+            stdout.indexOf('crash with bad shutdown'), -1);
+        assert.equal(
+            stderr.indexOf('crash with bad shutdown'), -1);
 
-//         assert.end();
-//     });
-// });
+        fs.readFile(loc, function onfile(err, buf) {
+            assert.ifError(err);
 
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message,
+                'crash with bad shutdown');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.message,
+                'oops in graceful shutdown');
+            assert.equal(line2._uncaughtType, 'shutdown.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
