@@ -12,7 +12,7 @@
     "email": "raynos2@gmail.com"
   },
   "dependencies": {
-    "error": "^4.0.0",
+    "error": "^4.1.1",
     "once": "^1.3.0",
     "process": "^0.7.0"
   },
@@ -37,7 +37,7 @@
   "scripts": {
     "test": "npm run jshint && node ./test/index.js | tap-spec",
     "jshint": "jshint --verbose .",
-    "cover": "istanbul cover --report cobertura --print detail ./test/index.js",
+    "cover": "istanbul cover --report cobertura --print detail ./test/uncaught.js",
     "view-cover": "istanbul report html && opn ./coverage/index.html"
   },
   "engine": {

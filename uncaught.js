@@ -1,69 +1,20 @@
 var globalFs = require('fs');
-var TypedError = require('error/typed');
 var once = require('once');
 var process = require('process');
 var globalSetTimeout = require('timers').setTimeout;
 var globalClearTimeout = require('timers').clearTimeout;
 
 var tryCatch = require('./lib/try-catch-it.js');
+var errors = require('./errors.js');
 
 var LOGGER_TIMEOUT = 30 * 1000;
 var SHUTDOWN_TIMEOUT = 30 * 1000;
-
-var LoggerRequired = TypedError({
-    type: 'uncaught-exception.logger.required',
-    message: 'uncaught-exception: the options.logger ' +
-        'parameter is required.\n' +
-        'Please call `uncaught({ logger: logger })`.\n'
-});
-
-var LoggerMethodRequired = TypedError({
-    type: 'uncaught-exception.logger.methodsRequired',
-    message: 'uncaught-exception: the options.logger should ' +
-        'have either a fatal() method.\n' +
-        'Please call `uncaught({ logger: logger }) with a ' +
-        'logger that has a fatal method.\n'
-});
-
-var LoggerTimeoutError = TypedError({
-    type: 'uncaught-exception.logger.timeout',
-    message: 'uncaught-exception: the logger.fatal() method ' +
-        'timed out.\n' +
-        'Expected it to finish within {time} ms.\n'
-});
-
-var ShutdownTimeoutError = TypedError({
-    type: 'uncaught-exception.shutdown.timeout',
-    message: 'uncaught-exception: the gracefulShutdown() ' +
-        'function timed out.\n' +
-        'Expected it to finish within {time} ms.\n'
-});
-
-var LoggerThrownException = TypedError({
-    type: 'uncaught-exception.logger.threw',
-    message: 'uncaught-exception: the logger.fatal() method ' +
-        'threw an exception.\n' +
-        'Expected it to not throw at all.\n' +
-        'message: {errorMessage}.\n' +
-        'type: {errorType}.\n' +
-        'stack: {errorStack}.\n'
-});
-
-var ShutdownThrownException = TypedError({
-    type: 'uncaught-exception.shutdown.threw',
-    message: 'uncaught-exception: the gracefulShutdown() ' +
-        'function threw an exception.\n' +
-        'Expected it to not throw at all.\n' +
-        'message: {errorMessage}.\n' +
-        'type: {errorType}.\n' +
-        'stack: {errorStack}.\n'
-});
 
 module.exports = uncaught;
 
 function uncaught(options) {
     if (!options || typeof options.logger !== 'object') {
-        throw LoggerRequired({
+        throw errors.LoggerRequired({
             logger: options && options.logger
         });
     }
@@ -71,7 +22,7 @@ function uncaught(options) {
     var logger = options.logger;
 
     if (!logger || typeof logger.fatal !== 'function') {
-        throw LoggerMethodRequired({
+        throw errors.LoggerMethodRequired({
             logger: logger,
             keys: Object.keys(logger)
         });
@@ -115,7 +66,7 @@ function uncaught(options) {
 
         var loggerError = tuple[0];
         if (loggerError) {
-            loggerCallback(LoggerThrownException({
+            loggerCallback(errors.LoggerThrownException({
                 errorMessage: loggerError.message,
                 errorType: loggerError.type,
                 errorStack: loggerError.stack
@@ -145,7 +96,7 @@ function uncaught(options) {
 
             var shutdownError = tuple2[0];
             if (shutdownError) {
-                shutdownCallback(ShutdownThrownException({
+                shutdownCallback(errors.ShutdownThrownException({
                     errorMessage: shutdownError.message,
                     errorType: shutdownError.type,
                     errorStack: shutdownError.stack
@@ -176,7 +127,7 @@ function uncaught(options) {
         function onlogtimeout() {
             timers.logger = null;
 
-            loggerCallback(LoggerTimeoutError({
+            loggerCallback(errors.LoggerTimeoutError({
                 time: loggerTimeout
             }));
         }
@@ -184,7 +135,7 @@ function uncaught(options) {
         function onshutdowntimeout() {
             timers.shutdown = null;
 
-            shutdownCallback(ShutdownTimeoutError({
+            shutdownCallback(errors.ShutdownTimeoutError({
                 timer: shutdownTimeout
             }));
         }
