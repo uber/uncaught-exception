@@ -6,8 +6,8 @@
     "forin": true,
     "immed": true,
     "indent": 4,
-    "latedef": true,
-    "newcap": true,
+    "latedef": "func",
+    "newcap": false,
     "noarg": true,
     "nonew": true,
     "plusplus": false,
@@ -17,16 +17,14 @@
     "unused": true,
     "strict": false,
     "trailing": true,
-    "node": true,
     "noempty": true,
     "maxdepth": 4,
     "maxparams": 4,
+    "shadow": "outer",
     "globals": {
-        "console": true,
-        "Buffer": true,
-        "setTimeout": true,
-        "clearTimeout": true,
-        "setInterval": true,
-        "clearInterval": true
+        "require": true,
+        "module": true,
+        "__dirname": true,
+        "console": true
     }
 }

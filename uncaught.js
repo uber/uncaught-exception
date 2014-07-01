@@ -1,63 +1,244 @@
-function uncaughtExceptionHandler(opts) {
-    function onError(err) {
-        // if we want to crash on exception then wait for sending a message
-        // to raven and logger. Then remove listener & rethrow.
-        // node will crash the process like it normally does for thrown errors
-        function shutdown() {
-            // crashOnException should not be optional. It should always
-            // happen.
-            // https://github.com/joyent/node/issues/2582
-            // there is zero garantuee you can even log to logger in 
-            // undefined state. This process needs to die hard, 
-            // not killing it leads to cascading failures & disaster porn.
-            // http://www.infoq.com/presentations/Debugging-Production-Systems
-            if (opts.crashOnException !== false) {
-                process.removeListener('uncaughtException', onError);
-                throw err;
-            }
-        }
+var globalFs = require('fs');
+var once = require('once');
+var process = require('process');
+var domain = require('domain');
+var globalSetTimeout = require('timers').setTimeout;
+var globalClearTimeout = require('timers').clearTimeout;
+var jsonStringify = require('json-stringify-safe');
 
-        function next(loggingError) {
-            if (!loggingError || !logger) {
-                return shutdown();
-            }
+var tryCatch = require('./lib/try-catch-it.js');
+var errors = require('./errors.js');
 
-            var subject = (opts.scope ? opts.scope + ' ' : '') +
-                serviceName + ' - ' + ' Uncaught Exception';
+var LOGGER_TIMEOUT = 30 * 1000;
+var SHUTDOWN_TIMEOUT = 30 * 1000;
+var PRE_LOGGING_ERROR_STATE = 'pre.logging.error';
+var LOGGING_ERROR_STATE = 'logging.error';
+var PRE_GRACEFUL_SHUTDOWN_STATE = 'pre.graceful.shutdown';
+var GRACEFUL_SHUTDOWN_STATE = 'graceful.shutdown';
+var POST_GRACEFUL_SHUTDOWN_STATE = 'post.graceful.shutdown';
 
-            logger.error('Uncaught exception:\n' + err.stack, {
-                subject: subject
-            }, shutdown);
-        }
+module.exports = uncaught;
 
-        if (err.uncaughtExceptionHandled) {
-            return;
-        }
-
-        // node 0.8.8 domains have edge cases in them where it may call
-        // the uncaughtException listener multiple times with the same
-        // error. This should go away in 0.10 or 0.12
-        err.uncaughtExceptionHandled = true;
-
-        if (opts.verbose) {
-            if (opts.logError) {
-                opts.logError(err, next);
-            } else {
-                next(true);
-            }
-        } else if (logger) {
-            logger.error('uncaught err = ' + err.message,
-                err.stack, shutdown);
-        } else {
-            shutdown();
-        }
+function uncaught(options) {
+    if (!options || typeof options.logger !== 'object') {
+        throw errors.LoggerRequired({
+            logger: options && options.logger
+        });
     }
 
-    opts = opts || {};
-    var logger = opts.logger;
-    var serviceName = opts.serviceName || 'unknown service';
+    var logger = options.logger;
 
-    return onError;
+    if (!logger || typeof logger.fatal !== 'function') {
+        throw errors.LoggerMethodRequired({
+            logger: logger,
+            keys: Object.keys(logger)
+        });
+    }
+
+    var fs = options.fs || globalFs;
+    var setTimeout = options.setTimeout || globalSetTimeout;
+    var clearTimeout = options.clearTimeout ||
+        globalClearTimeout;
+
+    var prefix = options.prefix ? String(options.prefix) : '';
+    var backupFile = typeof options.backupFile === 'string' ?
+        options.backupFile : null;
+    var loggerTimeout =
+        typeof options.loggerTimeout === 'number' ?
+        options.loggerTimeout : LOGGER_TIMEOUT;
+    var shutdownTimeout =
+        typeof options.shutdownTimeout === 'number' ?
+        options.shutdownTimeout : SHUTDOWN_TIMEOUT;
+
+    var gracefulShutdown =
+        typeof options.gracefulShutdown === 'function' ?
+        options.gracefulShutdown : asyncNoop;
+    var preAbort = typeof options.preAbort === 'function' ?
+        options.preAbort : noop;
+
+    return uncaughtListener;
+
+    function uncaughtListener(error) {
+        var type = error.type || '';
+        var timers = {};
+        var loggerCallback = asyncOnce(onlogged);
+        var shutdownCallback = asyncOnce(onshutdown);
+        var d = domain.create();
+        var currentState = PRE_LOGGING_ERROR_STATE;
+
+        var errorCallbacks = {};
+        errorCallbacks[PRE_LOGGING_ERROR_STATE] = loggerCallback;
+        errorCallbacks[LOGGING_ERROR_STATE] = loggerCallback;
+        errorCallbacks[PRE_GRACEFUL_SHUTDOWN_STATE] =
+            shutdownCallback;
+        errorCallbacks[GRACEFUL_SHUTDOWN_STATE] =
+            shutdownCallback;
+        errorCallbacks[POST_GRACEFUL_SHUTDOWN_STATE] =
+            terminate;
+
+        d.on('error', onDomainError);
+
+        timers.logger = setTimeout(onlogtimeout, loggerTimeout);
+
+        d.run(function logError() {
+            var tuple = tryCatch(function tryIt() {
+                currentState = LOGGING_ERROR_STATE;
+                logger.fatal(prefix + 'Uncaught Exception: ' +
+                    type, error, loggerCallback);
+            });
+
+            var loggerError = tuple[0];
+            if (loggerError) {
+                var errorCallback = errorCallbacks[currentState];
+                errorCallback(errors.LoggerThrownException({
+                    errorMessage: loggerError.message,
+                    errorType: loggerError.type,
+                    errorStack: loggerError.stack
+                }));
+            }
+        });
+
+        function onlogged(err) {
+            currentState = PRE_GRACEFUL_SHUTDOWN_STATE;
+            if (timers.logger) {
+                clearTimeout(timers.logger);
+            }
+
+            if (err && backupFile) {
+                var str = stringifyError(
+                    error, 'uncaught.exception');
+                safeAppend(fs, backupFile, str);
+                var str2 = stringifyError(
+                    err, 'logger.failure');
+                safeAppend(fs, backupFile, str2);
+            }
+
+            timers.shutdown = setTimeout(onshutdowntimeout,
+                shutdownTimeout);
+
+            var tuple2 = tryCatch(function tryIt() {
+                currentState = GRACEFUL_SHUTDOWN_STATE;
+                gracefulShutdown(shutdownCallback);
+            });
+
+            var shutdownError = tuple2[0];
+            if (shutdownError) {
+                var errorCallback = errorCallbacks[currentState];
+                errorCallback(errors.ShutdownThrownException({
+                    errorMessage: shutdownError.message,
+                    errorType: shutdownError.type,
+                    errorStack: shutdownError.stack
+                }));
+            }
+        }
+
+        function onshutdown(err) {
+            currentState = POST_GRACEFUL_SHUTDOWN_STATE;
+            if (timers.shutdown) {
+                clearTimeout(timers.shutdown);
+            }
+
+            if (err && backupFile) {
+                var str = stringifyError(
+                    error, 'uncaught.exception');
+                safeAppend(fs, backupFile, str);
+                var str2 = stringifyError(
+                    err, 'shutdown.failure');
+                safeAppend(fs, backupFile, str2);
+            }
+
+            terminate();
+        }
+
+        function terminate() {
+            // try and swallow the exception, if you have an
+            // exception in preAbort then your fucked, abort().
+            tryCatch(preAbort);
+            process.abort();
+        }
+
+        function onDomainError(domainError) {
+            var errorCallback = errorCallbacks[currentState];
+
+            if (currentState === PRE_LOGGING_ERROR_STATE ||
+                currentState === LOGGING_ERROR_STATE
+            ) {
+                errorCallback(errors.LoggerAsyncError({
+                    errorMessage: domainError.message,
+                    errorType: domainError.type,
+                    errorStack: domainError.stack,
+                    currentState: currentState
+                }));
+            } else if (
+                currentState === PRE_GRACEFUL_SHUTDOWN_STATE ||
+                currentState === GRACEFUL_SHUTDOWN_STATE
+            ) {
+                errorCallback(errors.ShutdownAsyncError({
+                    errorMessage: domainError.message,
+                    errorType: domainError.type,
+                    errorStack: domainError.stack,
+                    currentState: currentState
+                }));
+            } else if (
+                currentState === POST_GRACEFUL_SHUTDOWN_STATE
+            ) {
+                // if something failed in after shutdown
+                // then we are in a terrible state, shutdown
+                // hard.
+                errorCallback();
+            }
+        }
+
+        function onlogtimeout() {
+            timers.logger = null;
+
+            loggerCallback(errors.LoggerTimeoutError({
+                time: loggerTimeout
+            }));
+        }
+
+        function onshutdowntimeout() {
+            timers.shutdown = null;
+
+            shutdownCallback(errors.ShutdownTimeoutError({
+                timer: shutdownTimeout
+            }));
+        }
+    }
 }
 
-module.exports = uncaughtExceptionHandler;
+function asyncOnce(fn) {
+    return once(function defer() {
+        var args = arguments;
+        var self = this;
+
+        process.nextTick(function callIt() {
+            fn.apply(self, args);
+        });
+    });
+}
+
+function asyncNoop(cb) {
+    process.nextTick(cb);
+}
+
+function stringifyError(error, uncaughtType) {
+    return jsonStringify({
+        message: error.message,
+        type: error.type,
+        _uncaughtType: uncaughtType,
+        stack: error.stack
+    }) + '\n';
+}
+
+function safeAppend(fs, backupFile, str) {
+    // try appending to the file. If this throws then just
+    // ignore it and carry on. If we cannot write to this file
+    // like it doesnt exist or read only file system then there
+    // is no recovering
+    tryCatch(function append() {
+        fs.appendFileSync(backupFile, str);
+    });
+}
+
+function noop() {}

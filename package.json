@@ -5,28 +5,41 @@
   "keywords": [],
   "author": "Raynos <raynos2@gmail.com>",
   "repository": "git://github.com/uber/uncaught-exception.git",
-  "main": "index",
+  "main": "uncaught",
   "homepage": "https://github.com/uber/uncaught-exception",
   "bugs": {
     "url": "https://github.com/uber/uncaught-exception/issues",
     "email": "raynos2@gmail.com"
   },
-  "dependencies": {},
+  "dependencies": {
+    "error": "^4.1.1",
+    "json-stringify-safe": "^5.0.0",
+    "once": "^1.3.0",
+    "process": "^0.7.0"
+  },
   "collaborators": [
-    { "name": "David ellis" },
-    { "name": "Amos barreto" }
+    {
+      "name": "David ellis"
+    },
+    {
+      "name": "Amos barreto"
+    }
   ],
   "devDependencies": {
-    "jshint": "~2.3.0",
-    "istanbul": "~0.1.46",
-    "xtend": "~2.1.1",
-    "assert-tap": "~0.1.4"
+    "assert-tap": "~0.1.4",
+    "fake-fs": "^0.4.0",
+    "istanbul": "^0.2.13",
+    "jshint": "^2.5.1",
+    "opn": "^0.1.2",
+    "tap-spec": "^0.2.0",
+    "time-mock": "^0.1.2",
+    "xtend": "~2.1.1"
   },
   "scripts": {
-    "test": "npm run jshint && node ./test 2>&1 | tee ./test/test.js.tap",
-    "jshint": "jshint --verbose --config jshint.json .",
-    "cover": "istanbul cover --report none --print detail ./test",
-    "view-cover": "istanbul report html && open ./coverage/index.html"
+    "test": "npm run jshint && node ./test/index.js | tap-spec",
+    "jshint": "jshint --verbose .",
+    "cover": "istanbul cover --report cobertura --print detail ./test/index.js",
+    "view-cover": "istanbul report html && opn ./coverage/index.html"
   },
   "engine": {
     "node": ">= 0.8.x"

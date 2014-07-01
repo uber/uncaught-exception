@@ -2,60 +2,140 @@
 
 Handle uncaught exceptions.
 
-This is designed for node 0.8.8. The domain & uncaught handlers
-    may not work well in node 0.10
+Supports 0.10 only. Designed for robustness and garaunteed
+    eventual termination of the process.
 
 ## Example
 
 ```js
-var uncaughtHandler = require('uncaught-exception/uncaught');
-var domainHandler = require('uncaught-exception/domain');
+var uncaughtHandler = require('uncaught-exception');
 
-// uncaughtHandler returns an error handling function that you
-// can pass to `process.on('uncaughtException')`
+var myLogger = {
+    fatal: function (message, metaObj, callback) {
+        // must call the callback once logged
+    }
+}
+
 var onError = uncaughtHandler({
-    scope: 'some name of process',
-    logger: { error: function (message, opts, callback) {
-        // sink the error somewhere. We log the uncaught error
-        // and call the callback when its done
-    } },
-    verbose: true, // opt into more verbose error logging
-    logError: function (error, callback) {
-        // decide how you want to log the actual error object
-        // yourself. This function is only called in verbose
-        // mode. If you decorated your `Error` instance with
-        // any properties, you can stringify that data as well.
-    },
-    // if set to false the process will continue running.
-    // this can cause undefined state bugs. Not recommended!
-    crashOnException: true 
-});
-process.on('uncaughtException', onError);
+    logger: myLogger,
+    prefix: 'some string prefix ',
+    backupFile: '/path/to/uncaught-handler.log',
+    gracefulShutdown: function (callback) {
+        // perform some graceful shutdown here.
 
-var createDomain = domainHandler();
+        // for example synchronize state of your app to redis
+        // for example communicate to master process in cluster
+        // and ask for a new worker to be started
 
-http.createServer(function (req, res) {
-    createDomain([req, res], function handleError(err, domain) {
-        // an error occured in the domain. Here we can do cleanup
-
-        var code = 500;
-        // you can decorate the err. This allows you to print
-        // extra information from the error in `logError` for
-        // the uncaught handler
-        err.code = code;
-        res.statusCode = 500;
-        res.end("Error: " + err.message);
-        // don't forget to dispose the domain!
-        domain.dispose();
-    }, function onRun() {
-        // this is running in a domain
-
-        setTimeout(function () {
-            throw new Error('oops!');
-        }, 100);
-    })
+        // must call callback once gracefully shutdown
+        // after you call the callback the process will shutdown
+    }
 })
+
+process.on('uncaughtException', onError)
 ```
+
+## Docs
+
+### Type definitions
+
+See [docs.mli for type definitions](docs.mli)
+
+### `var onError = uncaughtHandler(options)`
+
+```
+uncaught-exception/uncaught := (options: {
+    logger: {
+        fatal: (String, Object, Callback) => void
+    },
+    prefix?: String,
+    backupFile?: String,
+    loggerTimeout?: Number,
+    shutdownTimeout?: Number,
+    gracefulShutdown?: (Callback) => void,
+    preAbort?: () => void
+}) => onError: (Error) => void
+```
+
+`uncaughtHandler` takes an options object and returns an error
+  handling function that can be passed to `'uncaughtException'`
+  listener of the `process`.
+
+You must pass the `uncaughtHandler` a `logger` with a `fatal()`
+  method.
+
+The `uncaughtHandler` will exit your process once it's done
+  logging the error.
+
+#### `options.logger`
+
+`options.logger` is a logger object used to log the exception.
+  It's expected to have a `fatal()` method that takes a string,
+  an error object and a callback.
+
+The `logger` should invoke the `callback` once it's flushed it to
+  all the logging backends you support, (i.e. disk, sentry, etc)
+
+#### `options.prefix`
+
+`options.prefix` allows you to configure a prefix for this
+  uncaught handler. You might want to put the `os.hostname()` in
+  the prefix.
+
+#### `options.backupFile`
+
+`options.backupFile` is a filePath that will be appended to
+  synchronously incase anything goes wrong inside the uncaught
+  exception handler.
+
+It's highly recommended you pass a backup file path in case your
+  logger fails.
+
+Inspecting the `backupFile` and looking at the core dump will
+  give you a deep insight into exactly what happened at the
+  end of your node process.
+
+#### `options.loggerTimeout`
+
+The `uncaughtHandler` will assume that your logger might fail or
+  hang so it times out the fatal logging call.
+
+The default timeout is 30 seconds, you can pass `loggerTimeout`
+  if you want to overwrite it.
+
+#### `options.gracefulShutdown`
+
+The `uncaught-exception` module supports doing a graceful
+  shutdown. Normally when an uncaught exception happens you
+  want to close any servers that are open and wait for all
+  sockets to exit cleanly.
+
+Ideally you want to empty the event loop and do a full graceful
+  shutdown.
+
+You may also want to communicate to the master process if you are
+  running under `cluster`.
+
+For more information on proper error handling see the
+  [node domain documentation](http://nodejs.org/api/domain.html#domain_warning_don_t_ignore_errors)
+
+#### `options.shutdownTimeout`
+
+The `uncaughtHandler` will assume that your gracefulShutdown
+  might fail or hang so it times out the graceful shutdown call.
+
+The default timeout is 30 seconds, you can pass `shutdownTimeout`
+  if you want to overwrite it.
+
+#### `options.preAbort`
+
+You can specify your own `preAbort` handler that **MUST** be
+  a synchronous function.
+
+The main use case is to invoke your own exit strategy instead of
+  the default exit strategy which is calling `process.abort()`
+
+For example you may want to `process.exit(1)` here instead.
 
 ## Installation
 
