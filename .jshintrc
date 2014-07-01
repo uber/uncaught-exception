@@ -24,12 +24,6 @@
         "require": true,
         "module": true,
         "__dirname": true,
-        "console": true,
-        "Buffer": true,
-        "process": true,
-        "setTimeout": true,
-        "clearTimeout": true,
-        "setInterval": true,
-        "clearInterval": true
+        "console": true
     }
 }

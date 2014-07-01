@@ -46,10 +46,9 @@
     "requireBlocksOnNewline": true,
     "excludeFiles": [
         "node_modules/**",
-        "templates/module/content/",
-        "cli/builtin/templates/"
+        "coverage/**",
+        "lib/try-catch-it.js"
     ],
-
 
     "requireCurlyBraces": [
         "if",
