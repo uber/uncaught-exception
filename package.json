@@ -37,7 +37,7 @@
   "scripts": {
     "test": "npm run jshint && node ./test/index.js | tap-spec",
     "jshint": "jshint --verbose .",
-    "cover": "istanbul cover --report cobertura --print detail ./test/shutdown.js",
+    "cover": "istanbul cover --report cobertura --print detail ./test/index.js",
     "view-cover": "istanbul report html && opn ./coverage/index.html"
   },
   "engine": {

@@ -189,6 +189,44 @@ test('handles a timeout logger', function t(assert) {
     });
 });
 
+test('handles a timeout shutdown', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        timeoutShutdown: true,
+        message: 'timeout shutdown',
+        backupFile: loc,
+        shutdownTimeout: 500
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stdout.indexOf('timeout shutdown'), -1);
+        assert.equal(stderr.indexOf('timeout shutdown'), -1);
+
+        fs.readFile(loc, function onfile(err, buf) {
+            assert.ifError(err);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'timeout shutdown');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.shutdown.timeout');
+            assert.equal(line2._uncaughtType,
+                'shutdown.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
 test('handles a timeout + late succeed', function t(assert) {
     var loc = path.join(__dirname, 'backupFile.log');
 
@@ -219,6 +257,43 @@ test('handles a timeout + late succeed', function t(assert) {
             assert.equal(line2.type,
                 'uncaught-exception.logger.timeout');
             assert.equal(line2._uncaughtType, 'logger.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
+test('handles a shutdown + late succeed', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        lateTimeoutShutdown: true,
+        message: 'late shutdown logger',
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stdout.indexOf('late shutdown logger'), -1);
+        assert.equal(stderr.indexOf('late shutdown logger'), -1);
+
+        fs.readFile(loc, function onfile(err, buf) {
+            assert.ifError(err);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'late shutdown logger');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.shutdown.timeout');
+            assert.equal(line2._uncaughtType,
+                'shutdown.failure');
 
             fs.unlink(loc, assert.end);
         });

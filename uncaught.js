@@ -8,6 +8,7 @@ var globalClearTimeout = require('timers').clearTimeout;
 var tryCatch = require('./lib/try-catch-it.js');
 
 var LOGGER_TIMEOUT = 30 * 1000;
+var SHUTDOWN_TIMEOUT = 30 * 1000;
 
 var LoggerRequired = TypedError({
     type: 'uncaught-exception.logger.required',
@@ -28,6 +29,13 @@ var LoggerTimeoutError = TypedError({
     type: 'uncaught-exception.logger.timeout',
     message: 'uncaught-exception: the logger.fatal() method ' +
         'timed out.\n' +
+        'Expected it to finish within {time} ms.\n'
+});
+
+var ShutdownTimeoutError = TypedError({
+    type: 'uncaught-exception.shutdown.timeout',
+    message: 'uncaught-exception: the gracefulShutdown() ' +
+        'function timed out.\n' +
         'Expected it to finish within {time} ms.\n'
 });
 
@@ -60,6 +68,9 @@ function uncaught(options) {
     var loggerTimeout =
         typeof options.loggerTimeout === 'number' ?
         options.loggerTimeout : LOGGER_TIMEOUT;
+    var shutdownTimeout =
+        typeof options.shutdownTimeout === 'number' ?
+        options.shutdownTimeout : SHUTDOWN_TIMEOUT;
 
     var gracefulShutdown =
         typeof options.gracefulShutdown === 'function' ?
@@ -73,6 +84,7 @@ function uncaught(options) {
         var type = error.type || '';
         var timers = {};
         var loggerCallback = once(onlogged);
+        var shutdownCallback = once(onshutdown);
 
         timers.logger = setTimeout(onlogtimeout, loggerTimeout);
 
@@ -93,15 +105,10 @@ function uncaught(options) {
                 clearTimeout(timers.logger);
             }
 
-            gracefulShutdown(onshutdown);
-        }
+            timers.shutdown = setTimeout(onshutdowntimeout,
+                shutdownTimeout);
 
-        function onlogtimeout() {
-            timers.logger = null;
-
-            loggerCallback(LoggerTimeoutError({
-                time: loggerTimeout
-            }));
+            gracefulShutdown(shutdownCallback);
         }
 
         function onshutdown(err) {
@@ -114,10 +121,30 @@ function uncaught(options) {
                 safeAppend(fs, backupFile, str2);
             }
 
+            if (timers.shutdown) {
+                clearTimeout(timers.shutdown);
+            }
+
             // try and swallow the exception, if you have an
             // exception in preAbort then your fucked, abort().
             tryCatch(preAbort);
             process.abort();
+        }
+
+        function onlogtimeout() {
+            timers.logger = null;
+
+            loggerCallback(LoggerTimeoutError({
+                time: loggerTimeout
+            }));
+        }
+
+        function onshutdowntimeout() {
+            timers.shutdown = null;
+
+            shutdownCallback(ShutdownTimeoutError({
+                timer: shutdownTimeout
+            }));
         }
     }
 }

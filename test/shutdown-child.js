@@ -67,6 +67,22 @@ if (opts.badShutdown) {
     };
 }
 
+if (opts.timeoutShutdown) {
+    opts.gracefulShutdown = function timeoutShutdown() {
+        // do nothing. simulate a timeout
+    };
+}
+
+if (opts.lateTimeoutShutdown) {
+    opts.shutdownTimeout = 500;
+    opts.gracefulShutdown = function timeoutShutdown(cb) {
+        // simulate a really show shutdown
+        setTimeout(function delay() {
+            cb();
+        }, 1000);
+    };
+}
+
 // implement preAbort to get the code coverage OUT of this
 // process
 opts.preAbort = function preAbort() {
