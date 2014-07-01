@@ -1,5 +1,6 @@
 var test = require('assert-tap').test;
 var path = require('path');
+var process = require('process');
 var exec = require('child_process').exec;
 var fs = require('fs');
 
@@ -19,8 +20,7 @@ var SIGABRT_CODE = 134;
 
 function spawnChild(opts, callback) {
     /*jshint camelcase: false */
-    // var isIstanbul = process.env.running_under_istanbul;
-    var isIstanbul = true;
+    var isIstanbul = process.env.running_under_istanbul;
 
     var cmd;
     // istanbul can't actually cover processes that crash.
