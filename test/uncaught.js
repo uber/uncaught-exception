@@ -12,10 +12,6 @@ function getListener() {
 }
 
 function uncaught(opts) {
-    function remove() {
-        process.removeListener('uncaughtException', onError);
-    }
-
     if (!opts.gracefulShutdown) {
         opts.gracefulShutdown = function gracefulShutdown() {
             // we don't want to abort in a test
@@ -35,6 +31,10 @@ function uncaught(opts) {
     process.on('uncaughtException', onError);
 
     return remove;
+
+    function remove() {
+        process.removeListener('uncaughtException', onError);
+    }
 }
 
 test('uncaughtException is a function', function t(assert) {
@@ -237,7 +237,7 @@ test('handles timeout for logger', function t(assert) {
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
 
-            assert.equal(line1.message, 'lulzy error');
+            assert.equal(line1.message, 'timeout error');
             assert.equal(line1._uncaughtType,
                 'uncaught.exception');
 
@@ -252,7 +252,54 @@ test('handles timeout for logger', function t(assert) {
     });
 
     process.nextTick(function throwIt() {
-        throw new Error('lulzy error');
+        throw new Error('timeout error');
+    });
+});
+
+test('handles exceptions for logger', function t(assert) {
+    var logger = {
+        fatal: function fatal() {
+            // simulate a bug
+            throw new Error('bug in logger implementation');
+        }
+    };
+
+    var fs = FakeFs();
+    fs.dir('/foo');
+
+    var remove = uncaught({
+        logger: logger,
+        fs: fs,
+        backupFile: '/foo/bar',
+        gracefulShutdown: function shutIt() {
+            assert.ok(true);
+
+            assert.ok(fs.existsSync('/foo/bar'));
+
+            var buf = fs.readFileSync('/foo/bar');
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'exception error');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.logger.threw');
+            assert.equal(line2._uncaughtType,
+                'logger.failure');
+
+            remove();
+            assert.end();
+        }
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('exception error');
     });
 });
 
@@ -283,7 +330,7 @@ test('handles custom timeout', function t(assert) {
     });
 
     process.nextTick(function throwIt() {
-        throw new Error('lulzy error');
+        throw new Error('timeout error');
     });
 });
 

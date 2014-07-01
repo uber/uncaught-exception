@@ -189,6 +189,42 @@ test('handles a timeout logger', function t(assert) {
     });
 });
 
+test('handles a thrown logger', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        thrownLogger: true,
+        message: 'thrown logger',
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stdout.indexOf('thrown logger'), -1);
+        assert.equal(stderr.indexOf('thrown logger'), -1);
+
+        fs.readFile(loc, function onfile(err, buf) {
+            assert.ifError(err);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'thrown logger');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.logger.threw');
+            assert.equal(line2._uncaughtType, 'logger.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
 test('handles a timeout shutdown', function t(assert) {
     var loc = path.join(__dirname, 'backupFile.log');
 

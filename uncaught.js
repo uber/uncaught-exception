@@ -39,6 +39,16 @@ var ShutdownTimeoutError = TypedError({
         'Expected it to finish within {time} ms.\n'
 });
 
+var LoggerThrowException = TypedError({
+    type: 'uncaught-exception.logger.threw',
+    message: 'uncaught-exception: the logger.fatal() method ' +
+        'threw an exception.\n' +
+        'Expected it to not throw at all.\n' +
+        'message: {errorMessage}.\n' +
+        'type: {errorType}.\n' +
+        'stack: {errorStack}.\n'
+});
+
 module.exports = uncaught;
 
 function uncaught(options) {
@@ -88,8 +98,19 @@ function uncaught(options) {
 
         timers.logger = setTimeout(onlogtimeout, loggerTimeout);
 
-        logger.fatal(prefix + 'Uncaught Exception: ' + type,
-            error, loggerCallback);
+        var tuple = tryCatch(function tryIt() {
+            logger.fatal(prefix + 'Uncaught Exception: ' + type,
+                error, loggerCallback);
+        });
+
+        var loggerError = tuple[0];
+        if (loggerError) {
+            loggerCallback(LoggerThrowException({
+                errorMessage: loggerError.message,
+                errorType: loggerError.type,
+                errorStack: loggerError.stack
+            }));
+        }
 
         function onlogged(err) {
             if (err && backupFile) {

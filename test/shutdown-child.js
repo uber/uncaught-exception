@@ -41,6 +41,15 @@ if (opts.timeoutLogger) {
     };
 }
 
+if (opts.thrownLogger) {
+    opts.logger = {
+        fatal: function fatal() {
+            // simulate a buggy logger
+            throw new Error('buggy logger');
+        }
+    };
+}
+
 if (opts.lateTimeoutLogger) {
     opts.loggerTimeout = 500;
     opts.logger = {
@@ -105,7 +114,7 @@ opts.preAbort = function preAbort() {
     listener();
 
     if (opts.throwInAbort) {
-        throw new Error('such troll, so face.');
+        throw new Error('bug in preAbort');
     }
 };
 
