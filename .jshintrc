@@ -20,6 +20,7 @@
     "noempty": true,
     "maxdepth": 4,
     "maxparams": 4,
+    "shadow": "outer",
     "globals": {
         "require": true,
         "module": true,

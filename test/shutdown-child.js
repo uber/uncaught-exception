@@ -15,7 +15,7 @@ var opts = JSON.parse(process.argv[2]);
 
 if (opts.consoleLogger) {
     opts.logger = {
-        fatal: function fatal(message, opts, cb) {
+        fatal: function fatal(message, options, cb) {
             console.error(message, {
                 message: opts.message,
                 stack: opts.stack
@@ -27,7 +27,7 @@ if (opts.consoleLogger) {
 
 if (opts.errorLogger) {
     opts.logger = {
-        fatal: function fatal(message, opts, cb) {
+        fatal: function fatal(message, options, cb) {
             cb(new Error('oops in logger.fatal()'));
         }
     };
@@ -63,7 +63,7 @@ if (opts.lateTimeoutLogger) {
 
 if (!opts.logger) {
     opts.logger = {
-        fatal: function fatal(message, opts, cb) {
+        fatal: function fatal(message, options, cb) {
             cb();
         }
     };

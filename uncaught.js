@@ -139,11 +139,11 @@ function uncaught(options) {
             timers.shutdown = setTimeout(onshutdowntimeout,
                 shutdownTimeout);
 
-            var tuple = tryCatch(function tryIt() {
+            var tuple2 = tryCatch(function tryIt() {
                 gracefulShutdown(shutdownCallback);
             });
 
-            var shutdownError = tuple[0];
+            var shutdownError = tuple2[0];
             if (shutdownError) {
                 shutdownCallback(ShutdownThrownException({
                     errorMessage: shutdownError.message,

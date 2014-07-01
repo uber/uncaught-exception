@@ -92,8 +92,8 @@ test('writes to backupFile for failing logger', function t(assert) {
         assert.equal(stdout.indexOf('crash with file'), -1);
         assert.equal(stderr.indexOf('crash with file'), -1);
 
-        fs.readFile(loc, function onfile(err, buf) {
-            assert.ifError(err);
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
 
             var lines = String(buf).trim().split('\n');
 
@@ -130,8 +130,8 @@ test('writes to backupFile for failing shutdown', function t(assert) {
         assert.equal(
             stderr.indexOf('crash with bad shutdown'), -1);
 
-        fs.readFile(loc, function onfile(err, buf) {
-            assert.ifError(err);
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
 
             var lines = String(buf).trim().split('\n');
 
@@ -168,8 +168,8 @@ test('handles a timeout logger', function t(assert) {
         assert.equal(stdout.indexOf('timeout logger'), -1);
         assert.equal(stderr.indexOf('timeout logger'), -1);
 
-        fs.readFile(loc, function onfile(err, buf) {
-            assert.ifError(err);
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
 
             var lines = String(buf).trim().split('\n');
 
@@ -204,8 +204,8 @@ test('handles a thrown logger', function t(assert) {
         assert.equal(stdout.indexOf('thrown logger'), -1);
         assert.equal(stderr.indexOf('thrown logger'), -1);
 
-        fs.readFile(loc, function onfile(err, buf) {
-            assert.ifError(err);
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
 
             var lines = String(buf).trim().split('\n');
 
@@ -241,8 +241,8 @@ test('handles a timeout shutdown', function t(assert) {
         assert.equal(stdout.indexOf('timeout shutdown'), -1);
         assert.equal(stderr.indexOf('timeout shutdown'), -1);
 
-        fs.readFile(loc, function onfile(err, buf) {
-            assert.ifError(err);
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
 
             var lines = String(buf).trim().split('\n');
 
@@ -278,8 +278,8 @@ test('handles a thrown shutdown', function t(assert) {
         assert.equal(stdout.indexOf('thrown shutdown'), -1);
         assert.equal(stderr.indexOf('thrown shutdown'), -1);
 
-        fs.readFile(loc, function onfile(err, buf) {
-            assert.ifError(err);
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
 
             var lines = String(buf).trim().split('\n');
 
@@ -316,8 +316,8 @@ test('handles a timeout + late succeed', function t(assert) {
         assert.equal(stdout.indexOf('late timeout logger'), -1);
         assert.equal(stderr.indexOf('late timeout logger'), -1);
 
-        fs.readFile(loc, function onfile(err, buf) {
-            assert.ifError(err);
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
 
             var lines = String(buf).trim().split('\n');
 
@@ -353,8 +353,8 @@ test('handles a shutdown + late succeed', function t(assert) {
         assert.equal(stdout.indexOf('late shutdown logger'), -1);
         assert.equal(stderr.indexOf('late shutdown logger'), -1);
 
-        fs.readFile(loc, function onfile(err, buf) {
-            assert.ifError(err);
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
 
             var lines = String(buf).trim().split('\n');
 

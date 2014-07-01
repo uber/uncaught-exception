@@ -28,7 +28,7 @@
     "assert-tap": "~0.1.4",
     "fake-fs": "^0.4.0",
     "istanbul": "^0.2.13",
-    "jshint": "~2.3.0",
+    "jshint": "^2.5.1",
     "opn": "^0.1.2",
     "tap-spec": "^0.2.0",
     "time-mock": "^0.1.2",
@@ -37,7 +37,7 @@
   "scripts": {
     "test": "npm run jshint && node ./test/index.js | tap-spec",
     "jshint": "jshint --verbose .",
-    "cover": "istanbul cover --report cobertura --print detail ./test/shutdown.js",
+    "cover": "istanbul cover --report cobertura --print detail ./test/index.js",
     "view-cover": "istanbul report html && opn ./coverage/index.html"
   },
   "engine": {
