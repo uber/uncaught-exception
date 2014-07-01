@@ -7,6 +7,9 @@
 */
 
 var console = require('console');
+var process = require('process');
+var setTimeout = require('timers').setTimeout;
+
 var uncaughtException = require('../uncaught.js');
 var opts = JSON.parse(process.argv[2]);
 
@@ -26,6 +29,26 @@ if (opts.errorLogger) {
     opts.logger = {
         fatal: function fatal(message, opts, cb) {
             cb(new Error('oops in logger.fatal()'));
+        }
+    };
+}
+
+if (opts.timeoutLogger) {
+    opts.logger = {
+        fatal: function fatal() {
+            // do nothing. simulate a timeout
+        }
+    };
+}
+
+if (opts.lateTimeoutLogger) {
+    opts.loggerTimeout = 500;
+    opts.logger = {
+        fatal: function fatal(message, opts, cb) {
+            // simulate a really slow logger
+            setTimeout(function delay() {
+                cb();
+            }, 1000);
         }
     };
 }
@@ -77,7 +100,3 @@ process.nextTick(function throwIt() {
     var err = new Error(opts.message);
     throw err;
 });
-
-setInterval(function busyWork() {
-    console.log('being busy');
-}, 1000);

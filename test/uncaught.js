@@ -25,6 +25,9 @@ function uncaught(opts) {
     if (!opts.setTimeout) {
         opts.setTimeout = function setTimeout() {
             // Lul.
+
+            // must return a number
+            return 1;
         };
     }
 
@@ -211,12 +214,66 @@ test('handles timeout for logger', function t(assert) {
         }
     };
 
+    var fs = FakeFs();
+    fs.dir('/foo');
     var timer = Timer(0);
 
     var remove = uncaught({
         logger: logger,
         setTimeout: timer.setTimeout,
         clearTimeout: timer.clearTimeout,
+        fs: fs,
+        backupFile: '/foo/bar',
+        gracefulShutdown: function shutIt() {
+            assert.ok(true);
+
+            assert.ok(fs.existsSync('/foo/bar'));
+
+            var buf = fs.readFileSync('/foo/bar');
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'lulzy error');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.logger.timeout');
+            assert.equal(line2._uncaughtType,
+                'logger.failure');
+
+            remove();
+            assert.end();
+        }
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('lulzy error');
+    });
+});
+
+test('handles custom timeout', function t(assert) {
+    var timeout = 500;
+    var logger = {
+        fatal: function fatal() {
+            // do nothing. simulate a timeout
+
+            // fast forward 500 ms
+            timer.advance(timeout);
+        }
+    };
+
+    var timer = Timer(0);
+
+    var remove = uncaught({
+        logger: logger,
+        setTimeout: timer.setTimeout,
+        clearTimeout: timer.clearTimeout,
+        loggerTimeout: timeout,
         gracefulShutdown: function shutIt() {
             assert.ok(true);
 

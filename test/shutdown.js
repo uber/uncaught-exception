@@ -13,6 +13,9 @@ var fs = require('fs');
 
 var shutdownChild = path.join(__dirname, 'shutdown-child.js');
 var count = 0;
+// child process will only exit 128 + 6 if it dumps core
+// to enable core dumps run `ulimit -c unlimited`
+var SIGABRT_CODE = 134;
 
 function spawnChild(opts, callback) {
     /*jshint camelcase: false */
@@ -45,7 +48,7 @@ test('a child process is aborted', function t(assert) {
         message: 'crash cleanly'
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.code, 134);
+        assert.equal(err.code, SIGABRT_CODE);
 
         assert.notEqual(
             stderr.indexOf('Uncaught Exception: '), -1);
@@ -63,7 +66,7 @@ test('throwing in preAbort', function t(assert) {
         throwInAbort: true
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.code, 134);
+        assert.equal(err.code, SIGABRT_CODE);
 
         assert.notEqual(
             stderr.indexOf('Uncaught Exception: '), -1);
@@ -83,7 +86,7 @@ test('writes to backupFile for failing logger', function t(assert) {
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.code, 134);
+        assert.equal(err.code, SIGABRT_CODE);
 
         assert.equal(stdout.indexOf('crash with file'), -1);
         assert.equal(stderr.indexOf('crash with file'), -1);
@@ -119,7 +122,7 @@ test('writes to backupFile for failing shutdown', function t(assert) {
         badShutdown: true
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.code, 134);
+        assert.equal(err.code, SIGABRT_CODE);
 
         assert.equal(
             stdout.indexOf('crash with bad shutdown'), -1);
@@ -146,5 +149,99 @@ test('writes to backupFile for failing shutdown', function t(assert) {
 
             fs.unlink(loc, assert.end);
         });
+    });
+});
+
+test('handles a timeout logger', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        timeoutLogger: true,
+        message: 'timeout logger',
+        backupFile: loc,
+        loggerTimeout: 500
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stdout.indexOf('timeout logger'), -1);
+        assert.equal(stderr.indexOf('timeout logger'), -1);
+
+        fs.readFile(loc, function onfile(err, buf) {
+            assert.ifError(err);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'timeout logger');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.logger.timeout');
+            assert.equal(line2._uncaughtType, 'logger.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
+test('handles a timeout + late succeed', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        lateTimeoutLogger: true,
+        message: 'late timeout logger',
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stdout.indexOf('late timeout logger'), -1);
+        assert.equal(stderr.indexOf('late timeout logger'), -1);
+
+        fs.readFile(loc, function onfile(err, buf) {
+            assert.ifError(err);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 2);
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+
+            assert.equal(line1.message, 'late timeout logger');
+            assert.equal(line1._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line2.type,
+                'uncaught-exception.logger.timeout');
+            assert.equal(line2._uncaughtType, 'logger.failure');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
+test('handles writing to bad file', function t(assert) {
+    var loc = path.join(__dirname, 'does', 'not', 'exist');
+
+    spawnChild({
+        message: 'crash with bad backupFile',
+        backupFile: loc,
+        consoleLogger: true,
+        badShutdown: true
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.notEqual(
+            stderr.indexOf('Uncaught Exception: '), -1);
+        assert.notEqual(
+            stderr.indexOf('crash with bad backupFile'), -1);
+
+        assert.end();
     });
 });
