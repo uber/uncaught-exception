@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+
+    <title>Uncaught-exception by uber</title>
+  </head>
+
+  <body>
+
+    <header>
+      <div class="container">
+        <h1>Uncaught-exception</h1>
+        <h2>Handle uncaught exceptions.</h2>
+
+        <section id="downloads">
+          <a href="https://github.com/uber/uncaught-exception/zipball/master" class="btn">Download as .zip</a>
+          <a href="https://github.com/uber/uncaught-exception/tarball/master" class="btn">Download as .tar.gz</a>
+          <a href="https://github.com/uber/uncaught-exception" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
+        </section>
+      </div>
+    </header>
+
+    <div class="container">
+      <section id="main_content">
+        <h1>
+<a name="uncaught-exception" class="anchor" href="#uncaught-exception"><span class="octicon octicon-link"></span></a>uncaught-exception</h1>
+
+<p>Handle uncaught exceptions.</p>
+
+<p>Supports 0.10 only. Designed for robustness and garaunteed
+    eventual termination of the process.</p>
+
+<h2>
+<a name="example" class="anchor" href="#example"><span class="octicon octicon-link"></span></a>Example</h2>
+
+<div class="highlight highlight-js"><pre><span class="kd">var</span> <span class="nx">uncaughtHandler</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'uncaught-exception'</span><span class="p">);</span>
+
+<span class="kd">var</span> <span class="nx">myLogger</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="nx">fatal</span><span class="o">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">message</span><span class="p">,</span> <span class="nx">metaObj</span><span class="p">,</span> <span class="nx">callback</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// must call the callback once logged</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">onError</span> <span class="o">=</span> <span class="nx">uncaughtHandler</span><span class="p">({</span>
+    <span class="nx">logger</span><span class="o">:</span> <span class="nx">myLogger</span><span class="p">,</span>
+    <span class="nx">prefix</span><span class="o">:</span> <span class="s1">'some string prefix '</span><span class="p">,</span>
+    <span class="nx">backupFile</span><span class="o">:</span> <span class="s1">'/path/to/uncaught-handler.log'</span><span class="p">,</span>
+    <span class="nx">gracefulShutdown</span><span class="o">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">callback</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// perform some graceful shutdown here.</span>
+
+        <span class="c1">// for example synchronize state of your app to redis</span>
+        <span class="c1">// for example communicate to master process in cluster</span>
+        <span class="c1">// and ask for a new worker to be started</span>
+
+        <span class="c1">// must call callback once gracefully shutdown</span>
+        <span class="c1">// after you call the callback the process will shutdown</span>
+    <span class="p">}</span>
+<span class="p">})</span>
+
+<span class="nx">process</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'uncaughtException'</span><span class="p">,</span> <span class="nx">onError</span><span class="p">)</span>
+</pre></div>
+
+<h2>
+<a name="docs" class="anchor" href="#docs"><span class="octicon octicon-link"></span></a>Docs</h2>
+
+<h3>
+<a name="type-definitions" class="anchor" href="#type-definitions"><span class="octicon octicon-link"></span></a>Type definitions</h3>
+
+<p>See <a href="docs.mli">docs.mli for type definitions</a></p>
+
+<h3>
+<a name="var-onerror--uncaughthandleroptions" class="anchor" href="#var-onerror--uncaughthandleroptions"><span class="octicon octicon-link"></span></a><code>var onError = uncaughtHandler(options)</code>
+</h3>
+
+<pre><code>uncaught-exception/uncaught := (options: {
+    logger: {
+        fatal: (String, Object, Callback) =&gt; void
+    },
+    prefix?: String,
+    backupFile?: String,
+    loggerTimeout?: Number,
+    shutdownTimeout?: Number,
+    gracefulShutdown?: (Callback) =&gt; void,
+    preAbort?: () =&gt; void
+}) =&gt; onError: (Error) =&gt; void
+</code></pre>
+
+<p><code>uncaughtHandler</code> takes an options object and returns an error
+  handling function that can be passed to <code>'uncaughtException'</code>
+  listener of the <code>process</code>.</p>
+
+<p>You must pass the <code>uncaughtHandler</code> a <code>logger</code> with a <code>fatal()</code>
+  method.</p>
+
+<p>The <code>uncaughtHandler</code> will exit your process once it's done
+  logging the error.</p>
+
+<h4>
+<a name="optionslogger" class="anchor" href="#optionslogger"><span class="octicon octicon-link"></span></a><code>options.logger</code>
+</h4>
+
+<p><code>options.logger</code> is a logger object used to log the exception.
+  It's expected to have a <code>fatal()</code> method that takes a string,
+  an error object and a callback.</p>
+
+<p>The <code>logger</code> should invoke the <code>callback</code> once it's flushed it to
+  all the logging backends you support, (i.e. disk, sentry, etc)</p>
+
+<h4>
+<a name="optionsprefix" class="anchor" href="#optionsprefix"><span class="octicon octicon-link"></span></a><code>options.prefix</code>
+</h4>
+
+<p><code>options.prefix</code> allows you to configure a prefix for this
+  uncaught handler. You might want to put the <code>os.hostname()</code> in
+  the prefix.</p>
+
+<h4>
+<a name="optionsbackupfile" class="anchor" href="#optionsbackupfile"><span class="octicon octicon-link"></span></a><code>options.backupFile</code>
+</h4>
+
+<p><code>options.backupFile</code> is a filePath that will be appended to
+  synchronously incase anything goes wrong inside the uncaught
+  exception handler.</p>
+
+<p>It's highly recommended you pass a backup file path in case your
+  logger fails.</p>
+
+<p>Inspecting the <code>backupFile</code> and looking at the core dump will
+  give you a deep insight into exactly what happened at the
+  end of your node process.</p>
+
+<h4>
+<a name="optionsloggertimeout" class="anchor" href="#optionsloggertimeout"><span class="octicon octicon-link"></span></a><code>options.loggerTimeout</code>
+</h4>
+
+<p>The <code>uncaughtHandler</code> will assume that your logger might fail or
+  hang so it times out the fatal logging call.</p>
+
+<p>The default timeout is 30 seconds, you can pass <code>loggerTimeout</code>
+  if you want to overwrite it.</p>
+
+<h4>
+<a name="optionsgracefulshutdown" class="anchor" href="#optionsgracefulshutdown"><span class="octicon octicon-link"></span></a><code>options.gracefulShutdown</code>
+</h4>
+
+<p>The <code>uncaught-exception</code> module supports doing a graceful
+  shutdown. Normally when an uncaught exception happens you
+  want to close any servers that are open and wait for all
+  sockets to exit cleanly.</p>
+
+<p>Ideally you want to empty the event loop and do a full graceful
+  shutdown.</p>
+
+<p>You may also want to communicate to the master process if you are
+  running under <code>cluster</code>.</p>
+
+<p>For more information on proper error handling see the
+  <a href="http://nodejs.org/api/domain.html#domain_warning_don_t_ignore_errors">node domain documentation</a></p>
+
+<h4>
+<a name="optionsshutdowntimeout" class="anchor" href="#optionsshutdowntimeout"><span class="octicon octicon-link"></span></a><code>options.shutdownTimeout</code>
+</h4>
+
+<p>The <code>uncaughtHandler</code> will assume that your gracefulShutdown
+  might fail or hang so it times out the graceful shutdown call.</p>
+
+<p>The default timeout is 30 seconds, you can pass <code>shutdownTimeout</code>
+  if you want to overwrite it.</p>
+
+<h4>
+<a name="optionspreabort" class="anchor" href="#optionspreabort"><span class="octicon octicon-link"></span></a><code>options.preAbort</code>
+</h4>
+
+<p>You can specify your own <code>preAbort</code> handler that <strong>MUST</strong> be
+  a synchronous function.</p>
+
+<p>The main use case is to invoke your own exit strategy instead of
+  the default exit strategy which is calling <code>process.abort()</code></p>
+
+<p>For example you may want to <code>process.exit(1)</code> here instead.</p>
+
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<p><code>npm install uncaught-exception</code></p>
+
+<h2>
+<a name="tests" class="anchor" href="#tests"><span class="octicon octicon-link"></span></a>tests</h2>
+
+<p><code>npm test</code></p>
+
+<h2>
+<a name="contributors" class="anchor" href="#contributors"><span class="octicon octicon-link"></span></a>Contributors</h2>
+
+<ul>
+<li>Raynos</li>
+<li>dfellis</li>
+<li>squamos</li>
+</ul><h2>
+<a name="mit-licenced" class="anchor" href="#mit-licenced"><span class="octicon octicon-link"></span></a>MIT Licenced</h2>
+      </section>
+    </div>
+
+    
+  </body>
+</html>
