@@ -26,6 +26,14 @@ function uncaught(options) {
         });
     }
 
+    if ('backupFile' in options &&
+        typeof options.backupFile !== 'string'
+    ) {
+        throw errors.InvalidBackupFile({
+            backupFile: options.backupFile
+        });
+    }
+
     var logger = options.logger;
 
     if (!logger || typeof logger.fatal !== 'function') {
