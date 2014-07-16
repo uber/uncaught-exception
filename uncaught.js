@@ -26,6 +26,14 @@ function uncaught(options) {
         });
     }
 
+    if ('backupFile' in options &&
+        typeof options.backupFile !== 'string'
+    ) {
+        throw errors.InvalidBackupFile({
+            backupFile: options.backupFile
+        });
+    }
+
     var logger = options.logger;
 
     if (!logger || typeof logger.fatal !== 'function') {
@@ -237,7 +245,13 @@ function safeAppend(fs, backupFile, str) {
     // like it doesnt exist or read only file system then there
     // is no recovering
     tryCatch(function append() {
-        fs.appendFileSync(backupFile, str);
+        if (backupFile === 'stdout') {
+            process.stdout.write(str);
+        } else if (backupFile === 'stderr') {
+            process.stderr.write(str);
+        } else {
+            fs.appendFileSync(backupFile, str);
+        }
     });
 }
 

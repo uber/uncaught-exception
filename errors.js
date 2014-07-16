@@ -7,6 +7,15 @@ var LoggerRequired = TypedError({
         'Please call `uncaught({ logger: logger })`.\n'
 });
 
+var InvalidBackupFile = TypedError({
+    type: 'uncaught-exception.invalid.backupFile',
+    message: 'uncaught-exception: the options.backupFile ' +
+        'parameter should be a string.\n' +
+        'Expected a string but got {backupFile}.\n' +
+        'Please call ' +
+        '`uncaught({ ..., backupFile: "path/to/file" })`.\n'
+});
+
 var LoggerMethodRequired = TypedError({
     type: 'uncaught-exception.logger.methodsRequired',
     message: 'uncaught-exception: the options.logger should ' +
@@ -73,6 +82,7 @@ var ShutdownAsyncError = TypedError({
 
 module.exports = {
     LoggerRequired: LoggerRequired,
+    InvalidBackupFile: InvalidBackupFile,
     LoggerMethodRequired: LoggerMethodRequired,
     LoggerTimeoutError: LoggerTimeoutError,
     ShutdownTimeoutError: ShutdownTimeoutError,
