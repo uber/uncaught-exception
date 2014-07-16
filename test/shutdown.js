@@ -115,6 +115,70 @@ test('writes to backupFile for failing logger', function t(assert) {
     });
 });
 
+test('writes to stdout with backupFile stdout', function t(assert) {
+    spawnChild({
+        errorLogger: true,
+        message: 'crash with file',
+        backupFile: 'stdout'
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stderr.indexOf('crash with file'), -1);
+
+        var buf = stdout;
+
+        var lines = String(buf).trim().split('\n');
+
+        assert.equal(lines.length, 2);
+        var line1 = JSON.parse(lines[0]);
+        var line2 = JSON.parse(lines[1]);
+
+        assert.equal(line1.message, 'crash with file');
+        assert.equal(line1._uncaughtType,
+            'uncaught.exception');
+
+        assert.equal(line2.message,
+            'oops in logger.fatal()');
+        assert.equal(line2._uncaughtType, 'logger.failure');
+
+        assert.end();
+    });
+});
+
+test('writes to stderr with backupFile stderr', function t(assert) {
+    spawnChild({
+        errorLogger: true,
+        message: 'crash with file',
+        backupFile: 'stderr'
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, SIGABRT_CODE);
+
+        assert.equal(stdout.indexOf('crash with file'), -1);
+
+        var buf = stderr;
+
+        var lines = String(buf).trim().split('\n');
+
+        assert.equal(lines.length, 3);
+        var line1 = JSON.parse(lines[0]);
+        var line2 = JSON.parse(lines[1]);
+
+        assert.equal(line1.message, 'crash with file');
+        assert.equal(line1._uncaughtType,
+            'uncaught.exception');
+
+        assert.equal(line2.message,
+            'oops in logger.fatal()');
+        assert.equal(line2._uncaughtType, 'logger.failure');
+
+        assert.equal(lines[2], 'Aborted (core dumped)');
+
+        assert.end();
+    });
+});
+
 test('async failing logger', function t(assert) {
     var loc = path.join(__dirname, 'backupFile.log');
 
