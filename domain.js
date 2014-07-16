@@ -2,23 +2,23 @@ var util = require('util');
 var domain;
 
 // see https://github.com/joyent/node/blob/v0.8.8-release/lib/domain.js#L53
-function emitError(domain, err) {
+function emitError(currentDomain, err) {
     /*jshint camelcase: false*/
     util._extend(err, {
-        domain: domain,
+        domain: currentDomain,
         domain_thrown: true
     });
-    domain.emit('error', err);
-    domain.exit();
+    currentDomain.emit('error', err);
+    currentDomain.exit();
 }
 
-function run(domain, onRun) {
+function run(currentDomain, onRun) {
     // add try catch. This gives us node 0.10 domain semantics
     // the unit tests expect throw errors to bubble into the domain.
     try {
-        domain.run(onRun);
+        currentDomain.run(onRun);
     } catch (err) {
-        emitError(domain, err);
+        emitError(currentDomain, err);
     }
 }
 
