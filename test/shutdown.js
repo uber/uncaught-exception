@@ -30,6 +30,7 @@ function spawnChild(opts, callback) {
     if (isIstanbul) {
         cmd = 'node_modules/.bin/istanbul cover ' + shutdownChild +
             ' --report cobertura' +
+            ' --print none' +
             ' --dir coverage/shutdown-child' + count + ' -- \'' +
             JSON.stringify(opts) + '\'';
     } else {
