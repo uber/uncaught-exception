@@ -95,6 +95,18 @@ Inspecting the `backupFile` and looking at the core dump will
   give you a deep insight into exactly what happened at the
   end of your node process.
 
+You may also pass the string literal `"stdout"` or `"stderr"` as
+  the `options.backupFile` property. If you set it to either
+  `"stdout"` or `"stderr"` then it will synchronously write to
+  `process.stdout` and `process.stderr` respectively.
+
+**Caveat:** If you are running windows and have set 
+  `options.backupFile` to `"stdout"` or `"stderr"` then it's not
+  garaunteed to be synchronous. In windows any writes to
+  `process.stdout` when `process.stdout` is a `PIPE` will be
+  asynchronous. i.e. `node foo.js | tee file` will involve
+  asynchronous writing to the `backupFile`.
+
 #### `options.loggerTimeout`
 
 The `uncaughtHandler` will assume that your logger might fail or

@@ -3,7 +3,7 @@ uncaught-exception/uncaught := (options: {
         fatal: (String, Object, Callback) => void
     },
     prefix?: String,
-    backupFile?: String,
+    backupFile?: "stdout" | "stderr" | String,
     loggerTimeout?: Number,
     shutdownTimeout?: Number,
     gracefulShutdown?: (Callback) => void,
