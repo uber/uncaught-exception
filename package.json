@@ -31,14 +31,15 @@
     "istanbul": "^0.2.13",
     "jshint": "^2.5.1",
     "opn": "^0.1.2",
+    "pre-commit": "0.0.9",
     "tap-spec": "^0.2.0",
     "time-mock": "^0.1.2",
     "xtend": "~2.1.1"
   },
   "scripts": {
-    "test": "npm run jshint && node ./test/index.js | tap-spec",
+    "test": "npm run jshint && npm run cover",
     "jshint": "jshint --verbose .",
-    "cover": "istanbul cover --report cobertura --print detail ./test/index.js",
+    "cover": "istanbul cover --report cobertura --print none ./test/index.js",
     "view-cover": "istanbul report html && opn ./coverage/index.html"
   },
   "engine": {

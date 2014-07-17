@@ -417,5 +417,16 @@ test('throws exception without options', function t(assert) {
     assert.equal(tuple3[0].type,
         'uncaught-exception.logger.methodsRequired');
 
+    var tuple4 = tryCatch(function throwIt() {
+        uncaughtException({
+            logger: { fatal: function e() {} },
+            backupFile: true
+        });
+    });
+
+    assert.ok(tuple4[0]);
+    assert.equal(tuple4[0].type,
+        'uncaught-exception.invalid.backupFile');
+
     assert.end();
 });

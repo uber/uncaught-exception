@@ -160,8 +160,9 @@ function uncaught(options) {
 
         function terminate() {
             // try and swallow the exception, if you have an
-            // exception in preAbort then your fucked, abort().
+            // exception in preAbort then you're fucked, abort().
             tryCatch(preAbort);
+            /* istanbul ignore next: abort() is untestable */
             process.abort();
         }
 
@@ -187,6 +188,7 @@ function uncaught(options) {
                     errorStack: domainError.stack,
                     currentState: currentState
                 }));
+            /* istanbul ignore else: impossible else block */
             } else if (
                 currentState === POST_GRACEFUL_SHUTDOWN_STATE
             ) {
@@ -194,6 +196,11 @@ function uncaught(options) {
                 // then we are in a terrible state, shutdown
                 // hard.
                 errorCallback();
+            } else {
+                // it's impossible to get into this state.
+                // but if we do we should terminate anyway
+                /* istanbul ignore next: never happens */
+                terminate();
             }
         }
 
@@ -255,4 +262,5 @@ function safeAppend(fs, backupFile, str) {
     });
 }
 
+/* istanbul ignore next: preAbort is never noop in tests */
 function noop() {}
