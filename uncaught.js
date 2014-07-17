@@ -160,7 +160,7 @@ function uncaught(options) {
 
         function terminate() {
             // try and swallow the exception, if you have an
-            // exception in preAbort then your fucked, abort().
+            // exception in preAbort then you're fucked, abort().
             tryCatch(preAbort);
             /* istanbul ignore next: abort() is untestable */
             process.abort();
