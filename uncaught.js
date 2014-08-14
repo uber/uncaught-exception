@@ -1,6 +1,7 @@
 var globalFs = require('fs');
 var once = require('once');
 var process = require('process');
+var os = require('os');
 var domain = require('domain');
 var globalSetTimeout = require('timers').setTimeout;
 var globalClearTimeout = require('timers').clearTimeout;
@@ -238,10 +239,15 @@ function asyncNoop(cb) {
 }
 
 function stringifyError(error, uncaughtType) {
+    var d = new Date();
+
     return jsonStringify({
         message: error.message,
         type: error.type,
         _uncaughtType: uncaughtType,
+        pid: process.pid,
+        hostname: os.hostname(),
+        ts: d.toISOString(),
         stack: error.stack
     }) + '\n';
 }
