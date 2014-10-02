@@ -98,17 +98,22 @@ test('writes to backupFile for failing logger', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'crash with file');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'crash with file');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.message,
+            assert.equal(line3.message,
                 'oops in logger.fatal()');
-            assert.equal(line2._uncaughtType, 'logger.failure');
+            assert.equal(line3._uncaughtType, 'logger.failure');
 
             fs.unlink(loc, assert.end);
         });
@@ -130,17 +135,22 @@ test('writes to stdout with backupFile stdout', function t(assert) {
 
         var lines = String(buf).trim().split('\n');
 
-        assert.equal(lines.length, 2);
+        assert.equal(lines.length, 3);
         var line1 = JSON.parse(lines[0]);
         var line2 = JSON.parse(lines[1]);
+        var line3 = JSON.parse(lines[2]);
 
         assert.equal(line1.message, 'crash with file');
         assert.equal(line1._uncaughtType,
+            'exception.occurred');
+
+        assert.equal(line2.message, 'crash with file');
+        assert.equal(line2._uncaughtType,
             'uncaught.exception');
 
-        assert.equal(line2.message,
+        assert.equal(line3.message,
             'oops in logger.fatal()');
-        assert.equal(line2._uncaughtType, 'logger.failure');
+        assert.equal(line3._uncaughtType, 'logger.failure');
 
         assert.end();
     });
@@ -161,19 +171,24 @@ test('writes to stderr with backupFile stderr', function t(assert) {
 
         var lines = String(buf).trim().split('\n');
 
-        assert.equal(lines.length, 3);
+        assert.equal(lines.length, 4);
         var line1 = JSON.parse(lines[0]);
         var line2 = JSON.parse(lines[1]);
+        var line3 = JSON.parse(lines[2]);
 
         assert.equal(line1.message, 'crash with file');
         assert.equal(line1._uncaughtType,
+            'exception.occurred');
+
+        assert.equal(line2.message, 'crash with file');
+        assert.equal(line2._uncaughtType,
             'uncaught.exception');
 
-        assert.equal(line2.message,
+        assert.equal(line3.message,
             'oops in logger.fatal()');
-        assert.equal(line2._uncaughtType, 'logger.failure');
+        assert.equal(line3._uncaughtType, 'logger.failure');
 
-        assert.equal(lines[2], 'Aborted (core dumped)');
+        assert.equal(lines[3], 'Aborted (core dumped)');
 
         assert.end();
     });
@@ -198,17 +213,22 @@ test('async failing logger', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'async error logger');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'async error logger');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.logger.async-error');
-            assert.equal(line2._uncaughtType, 'logger.failure');
+            assert.equal(line3._uncaughtType, 'logger.failure');
 
             fs.unlink(loc, assert.end);
         });
@@ -236,18 +256,24 @@ test('writes to backupFile for failing shutdown', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message,
                 'crash with bad shutdown');
             assert.equal(line1._uncaughtType,
-                'uncaught.exception');
+                'exception.occurred');
 
             assert.equal(line2.message,
-                'oops in graceful shutdown');
+                'crash with bad shutdown');
             assert.equal(line2._uncaughtType,
+                'uncaught.exception');
+
+            assert.equal(line3.message,
+                'oops in graceful shutdown');
+            assert.equal(line3._uncaughtType,
                 'shutdown.failure');
 
             fs.unlink(loc, assert.end);
@@ -276,12 +302,18 @@ test('handles a naughty shutdown', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 1);
+            assert.equal(lines.length, 2);
             var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
 
             assert.equal(line1.message,
                 'crash with naughty shutdown');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message,
+                'crash with naughty shutdown');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
             fs.unlink(loc, assert.end);
@@ -310,18 +342,24 @@ test('async failing shutdown', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message,
                 'async failing shutdown');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message,
+                'async failing shutdown');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.shutdown.async-error');
-            assert.equal(line2._uncaughtType,
+            assert.equal(line3._uncaughtType,
                 'shutdown.failure');
 
             fs.unlink(loc, assert.end);
@@ -349,17 +387,22 @@ test('handles a timeout logger', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'timeout logger');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'timeout logger');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.logger.timeout');
-            assert.equal(line2._uncaughtType, 'logger.failure');
+            assert.equal(line3._uncaughtType, 'logger.failure');
 
             fs.unlink(loc, assert.end);
         });
@@ -385,17 +428,22 @@ test('handles a thrown logger', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'thrown logger');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'thrown logger');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.logger.threw');
-            assert.equal(line2._uncaughtType, 'logger.failure');
+            assert.equal(line3._uncaughtType, 'logger.failure');
 
             fs.unlink(loc, assert.end);
         });
@@ -422,17 +470,22 @@ test('handles a timeout shutdown', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'timeout shutdown');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'timeout shutdown');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.shutdown.timeout');
-            assert.equal(line2._uncaughtType,
+            assert.equal(line3._uncaughtType,
                 'shutdown.failure');
 
             fs.unlink(loc, assert.end);
@@ -459,17 +512,22 @@ test('handles a thrown shutdown', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'thrown shutdown');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'thrown shutdown');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.shutdown.threw');
-            assert.equal(line2._uncaughtType,
+            assert.equal(line3._uncaughtType,
                 'shutdown.failure');
 
             fs.unlink(loc, assert.end);
@@ -497,17 +555,22 @@ test('handles a timeout + late succeed', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'late timeout logger');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'late timeout logger');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.logger.timeout');
-            assert.equal(line2._uncaughtType, 'logger.failure');
+            assert.equal(line3._uncaughtType, 'logger.failure');
 
             fs.unlink(loc, assert.end);
         });
@@ -534,17 +597,22 @@ test('handles a shutdown + late succeed', function t(assert) {
 
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'late shutdown logger');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'late shutdown logger');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.shutdown.timeout');
-            assert.equal(line2._uncaughtType,
+            assert.equal(line3._uncaughtType,
                 'shutdown.failure');
 
             fs.unlink(loc, assert.end);

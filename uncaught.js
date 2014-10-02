@@ -91,6 +91,12 @@ function uncaught(options) {
 
         d.run(function logError() {
             var tuple = tryCatch(function tryIt() {
+                if (backupFile) {
+                    var str = stringifyError(
+                        error, 'exception.occurred');
+                    safeAppend(fs, backupFile, str);
+                }
+
                 currentState = LOGGING_ERROR_STATE;
                 logger.fatal(prefix + 'Uncaught Exception: ' +
                     type, error, loggerCallback);
