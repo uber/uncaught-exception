@@ -138,15 +138,19 @@ test('writes to backupFile on error', function t(assert) {
             var content = fs.readFileSync('/foo/bar', 'utf8');
             var lines = content.trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
 
             var line1 = JSON.parse(lines[0]);
             assert.equal(line1.message, 'error test');
             assert.ok(line1.stack);
 
             var line2 = JSON.parse(lines[1]);
-            assert.equal(line2.message, 'cant log');
+            assert.equal(line2.message, 'error test');
             assert.ok(line2.stack);
+
+            var line3 = JSON.parse(lines[2]);
+            assert.equal(line3.message, 'cant log');
+            assert.ok(line3.stack);
 
             remove();
             assert.end();
@@ -239,18 +243,23 @@ test('handles timeout for logger', function t(assert) {
             var buf = fs.readFileSync('/foo/bar');
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
 
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'timeout error');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'timeout error');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.logger.timeout');
-            assert.equal(line2._uncaughtType,
+            assert.equal(line3._uncaughtType,
                 'logger.failure');
 
             remove();
@@ -286,18 +295,23 @@ test('handles exceptions for logger', function t(assert) {
             var buf = fs.readFileSync('/foo/bar');
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
 
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'exception error');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'exception error');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.logger.threw');
-            assert.equal(line2._uncaughtType,
+            assert.equal(line3._uncaughtType,
                 'logger.failure');
 
             remove();
@@ -335,18 +349,23 @@ test('handles async exceptions for logger', function t(assert) {
             var buf = fs.readFileSync('/foo/bar');
             var lines = String(buf).trim().split('\n');
 
-            assert.equal(lines.length, 2);
+            assert.equal(lines.length, 3);
 
             var line1 = JSON.parse(lines[0]);
             var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
 
             assert.equal(line1.message, 'async exception error');
             assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'async exception error');
+            assert.equal(line2._uncaughtType,
                 'uncaught.exception');
 
-            assert.equal(line2.type,
+            assert.equal(line3.type,
                 'uncaught-exception.logger.async-error');
-            assert.equal(line2._uncaughtType,
+            assert.equal(line3._uncaughtType,
                 'logger.failure');
 
             remove();
