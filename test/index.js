@@ -5,6 +5,7 @@ var exec = require('child_process').exec;
 
 require('./uncaught.js');
 require('./shutdown.js');
+require('./zero-config.js');
 
 test('check coverage', function t(assert) {
     getCoverage(function onCoverage(err, out) {

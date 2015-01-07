@@ -149,6 +149,72 @@ The main use case is to invoke your own exit strategy instead of
 
 For example you may want to `process.exit(1)` here instead.
 
+### `var onError = createUncaught(zeroConf, clients, opts?, cb?)`
+
+```jsig
+import { Logger } from "logtron"
+
+type FilePath : String
+
+type ZeroConfig<configValues: T> : {
+    get: (key: String) => value: Any
+}
+
+playdoh-clients/uncaught : (
+    config: ZeroConfig<{
+        "project": String,
+        "playdoh-uncaught": {
+            backupFile: FilePath,
+            loggerTimeout?: Number,
+            shutdownTimeout?: Number
+        }
+    }>,
+    clients: Object & { logger: Logger },
+    options?: {
+        gracefulShutdown?: (Callback<Error, void>) => void,
+        env?: Object<String, String>
+    },
+    cb?: Callback<Error, void>
+) => onError: (Error) => void
+```
+
+the `uncaught` module will set an `onError` property on the
+    `clients` argument. This `onError` property is a function
+    that serializes the error.
+
+The actual `onError` function is an created by the
+    [`uncaught-exception`][uncaught-exception] module
+
+Example:
+
+```js
+var zeroConfig = require('zero-config');
+var createLogger = require('playdoh-clients/logger')
+var createUncaught = require('playdoh-clients/uncaught');
+
+var config = zeroConfig(__dirname);
+var onError = createUncaught(config, {
+    logger: createLogger(config)
+});
+process.on('uncaughtException', onError);
+```
+
+```js
+// config/common.json
+{
+    "project": "my-project",
+    "playdoh-uncaught": {
+        backupFile: "/var/log/my-project"
+    }
+}
+```
+
+#### `config`
+
+The 
+
+[uncaught-exception
+
 ## Installation
 
 `npm install uncaught-exception`
