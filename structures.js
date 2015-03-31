@@ -7,7 +7,7 @@ found when debugging a core dump
 
 */
 
-var CONSTANTS = require('./constants.js');
+var Constants = require('./constants.js');
 
 var structures = {
     UncaughtExceptionStateMachine:
@@ -62,21 +62,21 @@ function UncaughtExceptionConfigValue(opts) {
 }
 
 function UncaughtExceptionPreLoggingErrorState(opts) {
-    this.stateName = CONSTANTS.PRE_LOGGING_ERROR_STATE;
+    this.stateName = Constants.PRE_LOGGING_ERROR_STATE;
     this.currentState = opts.currentState;
     this.currentDomain = opts.currentDomain;
     this.timerHandle = opts.timerHandle;
 }
 
 function UncaughtExceptionLoggingErrorState(opts) {
-    this.stateName = CONSTANTS.LOGGING_ERROR_STATE;
+    this.stateName = Constants.LOGGING_ERROR_STATE;
     this.currentState = opts.currentState;
     this.backupFileLine = opts.backupFileLine;
     this.loggerError = opts.loggerError;
 }
 
 function UncaughtExceptionPreGracefulShutdownState(opts) {
-    this.stateName = CONSTANTS.PRE_GRACEFUL_SHUTDOWN_STATE;
+    this.stateName = Constants.PRE_GRACEFUL_SHUTDOWN_STATE;
     this.currentState = opts.currentState;
     this.fatalLoggingError = opts.fatalLoggingError;
     this.backupFileUncaughtErrorLine = opts.backupFileUncaughtErrorLine;
@@ -85,13 +85,13 @@ function UncaughtExceptionPreGracefulShutdownState(opts) {
 }
 
 function UncaughtExceptionGracefulShutdownState(opts) {
-    this.stateName = CONSTANTS.GRACEFUL_SHUTDOWN_STATE;
+    this.stateName = Constants.GRACEFUL_SHUTDOWN_STATE;
     this.currentState = opts.currentState;
     this.shutdownError = opts.shutdownError;
 }
 
 function UncaughtExceptionPostGracefulShutdownState(opts) {
-    this.stateName = CONSTANTS.POST_GRACEFUL_SHUTDOWN_STATE;
+    this.stateName = Constants.POST_GRACEFUL_SHUTDOWN_STATE;
     this.currentState = opts.currentState;
     this.gracefulShutdownError = opts.gracefulShutdownError;
     this.backupFileUncaughtErrorLine = opts.backupFileUncaughtErrorLine;

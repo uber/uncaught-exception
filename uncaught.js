@@ -12,7 +12,7 @@ var jsonStringify = require('json-stringify-safe');
 var tryCatch = require('./lib/try-catch-it.js');
 var errors = require('./errors.js');
 var structures = require('./structures.js');
-var CONSTANTS = require('./constants.js');
+var Constants = require('./constants.js');
 
 var ALL_STATES = [];
 
@@ -53,10 +53,10 @@ function uncaught(options) {
         options.backupFile : null;
     var loggerTimeout =
         typeof options.loggerTimeout === 'number' ?
-        options.loggerTimeout : CONSTANTS.LOGGER_TIMEOUT;
+        options.loggerTimeout : Constants.LOGGER_TIMEOUT;
     var shutdownTimeout =
         typeof options.shutdownTimeout === 'number' ?
-        options.shutdownTimeout : CONSTANTS.SHUTDOWN_TIMEOUT;
+        options.shutdownTimeout : Constants.SHUTDOWN_TIMEOUT;
 
     var gracefulShutdown =
         typeof options.gracefulShutdown === 'function' ?
@@ -84,18 +84,18 @@ function uncaught(options) {
         var loggerCallback = asyncOnce(onlogged);
         var shutdownCallback = asyncOnce(onshutdown);
         var d = domain.create();
-        var currentState = CONSTANTS.PRE_LOGGING_ERROR_STATE;
+        var currentState = Constants.PRE_LOGGING_ERROR_STATE;
 
         var errorCallbacks = {};
-        errorCallbacks[CONSTANTS.PRE_LOGGING_ERROR_STATE] =
+        errorCallbacks[Constants.PRE_LOGGING_ERROR_STATE] =
             loggerCallback;
-        errorCallbacks[CONSTANTS.LOGGING_ERROR_STATE] =
+        errorCallbacks[Constants.LOGGING_ERROR_STATE] =
             loggerCallback;
-        errorCallbacks[CONSTANTS.PRE_GRACEFUL_SHUTDOWN_STATE] =
+        errorCallbacks[Constants.PRE_GRACEFUL_SHUTDOWN_STATE] =
             shutdownCallback;
-        errorCallbacks[CONSTANTS.GRACEFUL_SHUTDOWN_STATE] =
+        errorCallbacks[Constants.GRACEFUL_SHUTDOWN_STATE] =
             shutdownCallback;
-        errorCallbacks[CONSTANTS.POST_GRACEFUL_SHUTDOWN_STATE] =
+        errorCallbacks[Constants.POST_GRACEFUL_SHUTDOWN_STATE] =
             terminate;
 
         var stateMachine = new structures.UncaughtExceptionStateMachine();
@@ -125,7 +125,7 @@ function uncaught(options) {
                 safeAppend(fs, backupFile, str);
             }
 
-            currentState = CONSTANTS.LOGGING_ERROR_STATE;
+            currentState = Constants.LOGGING_ERROR_STATE;
             var tuple = tryCatch(function tryIt() {
                 logger.fatal(prefix + 'Uncaught Exception: ' +
                     type, error, loggerCallback);
@@ -152,7 +152,7 @@ function uncaught(options) {
         }
 
         function onlogged(err) {
-            currentState = CONSTANTS.PRE_GRACEFUL_SHUTDOWN_STATE;
+            currentState = Constants.PRE_GRACEFUL_SHUTDOWN_STATE;
             if (timers.logger) {
                 clearTimeout(timers.logger);
             }
@@ -183,7 +183,7 @@ function uncaught(options) {
             );
 
             var tuple2 = tryCatch(function tryIt() {
-                currentState = CONSTANTS.GRACEFUL_SHUTDOWN_STATE;
+                currentState = Constants.GRACEFUL_SHUTDOWN_STATE;
                 gracefulShutdown(shutdownCallback);
             });
 
@@ -207,7 +207,7 @@ function uncaught(options) {
         }
 
         function onshutdown(err) {
-            currentState = CONSTANTS.POST_GRACEFUL_SHUTDOWN_STATE;
+            currentState = Constants.POST_GRACEFUL_SHUTDOWN_STATE;
             if (timers.shutdown) {
                 clearTimeout(timers.shutdown);
             }
@@ -257,8 +257,8 @@ function uncaught(options) {
         function onDomainError(domainError) {
             var errorCallback = errorCallbacks[currentState];
 
-            if (currentState === CONSTANTS.PRE_LOGGING_ERROR_STATE ||
-                currentState === CONSTANTS.LOGGING_ERROR_STATE
+            if (currentState === Constants.PRE_LOGGING_ERROR_STATE ||
+                currentState === Constants.LOGGING_ERROR_STATE
             ) {
                 errorCallback(errors.LoggerAsyncError({
                     errorMessage: domainError.message,
@@ -267,8 +267,8 @@ function uncaught(options) {
                     currentState: currentState
                 }));
             } else if (
-                currentState === CONSTANTS.PRE_GRACEFUL_SHUTDOWN_STATE ||
-                currentState === CONSTANTS.GRACEFUL_SHUTDOWN_STATE
+                currentState === Constants.PRE_GRACEFUL_SHUTDOWN_STATE ||
+                currentState === Constants.GRACEFUL_SHUTDOWN_STATE
             ) {
                 errorCallback(errors.ShutdownAsyncError({
                     errorMessage: domainError.message,
@@ -278,7 +278,7 @@ function uncaught(options) {
                 }));
             /* istanbul ignore else: impossible else block */
             } else if (
-                currentState === CONSTANTS.POST_GRACEFUL_SHUTDOWN_STATE
+                currentState === Constants.POST_GRACEFUL_SHUTDOWN_STATE
             ) {
                 // if something failed in after shutdown
                 // then we are in a terrible state, shutdown
