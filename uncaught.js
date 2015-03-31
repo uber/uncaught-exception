@@ -329,13 +329,13 @@ function stringifyError(error, uncaughtType) {
     var d = new Date();
 
     return jsonStringify({
-        message: error && error.message,
-        type: error && error.type,
+        message: error.message,
+        type: error.type,
         _uncaughtType: uncaughtType,
         pid: process.pid,
         hostname: os.hostname(),
         ts: d.toISOString(),
-        stack: error && error.stack
+        stack: error.stack
     }) + '\n';
 }
 
