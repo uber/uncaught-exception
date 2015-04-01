@@ -21,6 +21,7 @@
     "maxdepth": 4,
     "maxparams": 4,
     "shadow": "outer",
+    "globalstrict": true,
     "globals": {
         "require": true,
         "module": true,
