@@ -281,7 +281,7 @@ function transition(error) {
     self.uncaught.reporter.markTransition(self);
 
     switch (self.currentState) {
-                /* istanbul ignore next: hard to hit */
+        /* istanbul ignore next: hard to hit */
         case Constants.INITIAL_STATE:
         /* istanbul ignore next: hard to hit */
         case Constants.ON_ERROR_STATE:
