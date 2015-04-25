@@ -1,6 +1,5 @@
 'use strict';
 
-var once = require('once');
 var process = require('process');
 var domain = require('domain');
 
@@ -27,42 +26,7 @@ function UncaughtExceptionHandler(uncaught) {
     self.stateMachine = null;
     self.currentDomain = null;
     self.currentState = Constants.INITIAL_STATE;
-    self.errorCallbacks = {};
     self.timerHandles = {};
-
-    var loggerCallback = asyncOnce(onlogged);
-    var shutdownCallback = asyncOnce(onshutdown);
-
-    self.errorCallbacks[Constants.INITIAL_STATE] =
-        loggerCallback;
-    self.errorCallbacks[Constants.ON_ERROR_STATE] =
-        loggerCallback;
-    self.errorCallbacks[Constants.PRE_LOGGING_ERROR_STATE] =
-        loggerCallback;
-    self.errorCallbacks[Constants.LOGGING_ERROR_STATE] =
-        loggerCallback;
-
-    self.errorCallbacks[Constants.POST_LOGGING_ERROR_STATE] =
-        shutdownCallback;
-    self.errorCallbacks[Constants.PRE_GRACEFUL_SHUTDOWN_STATE] =
-        shutdownCallback;
-    self.errorCallbacks[Constants.GRACEFUL_SHUTDOWN_STATE] =
-        shutdownCallback;
-
-    self.errorCallbacks[Constants.POST_GRACEFUL_SHUTDOWN_STATE] =
-        onterminate;
-
-    function onlogged(err) {
-        self.onLoggerFatal(err);
-    }
-
-    function onshutdown(err) {
-        self.onGracefulShutdown(err);
-    }
-
-    function onterminate() {
-        self.handleTerminate();
-    }
 }
 
 UncaughtExceptionHandler.prototype.handleError =
@@ -264,41 +228,49 @@ function onDomainError(domainError) {
     var self = this;
     var currentState = self.currentState;
 
-    if (currentState === Constants.INITIAL_STATE ||
-        currentState === Constants.ON_ERROR_STATE ||
-        currentState === Constants.PRE_LOGGING_ERROR_STATE ||
-        currentState === Constants.LOGGING_ERROR_STATE
-    ) {
-        self.transition(errors.LoggerAsyncError({
-            errorMessage: domainError.message,
-            errorType: domainError.type,
-            errorStack: domainError.stack,
-            currentState: currentState
-        }));
-    } else if (
-        currentState === Constants.POST_LOGGING_ERROR_STATE ||
-        currentState === Constants.PRE_GRACEFUL_SHUTDOWN_STATE ||
-        currentState === Constants.GRACEFUL_SHUTDOWN_STATE
-    ) {
-        self.transition(errors.ShutdownAsyncError({
-            errorMessage: domainError.message,
-            errorType: domainError.type,
-            errorStack: domainError.stack,
-            currentState: currentState
-        }));
-    /* istanbul ignore else: impossible else block */
-    } else if (
-        currentState === Constants.POST_GRACEFUL_SHUTDOWN_STATE
-    ) {
-        // if something failed in after shutdown
-        // then we are in a terrible state, shutdown
-        // hard.
-        self.transition();
-    } else {
-        // it's impossible to get into this state.
-        // but if we do we should terminate anyway
+    switch (currentState) {
+        /* istanbul ignore next: hard to hit */
+        case Constants.INITIAL_STATE:
+        /* istanbul ignore next: hard to hit */
+        case Constants.ON_ERROR_STATE:
+        /* istanbul ignore next: hard to hit */
+        case Constants.PRE_LOGGING_ERROR_STATE:
+        case Constants.LOGGING_ERROR_STATE:
+            self.transition(errors.LoggerAsyncError({
+                errorMessage: domainError.message,
+                errorType: domainError.type,
+                errorStack: domainError.stack,
+                currentState: currentState
+            }));
+            break;
+
+        /* istanbul ignore next: hard to hit */
+        case Constants.POST_LOGGING_ERROR_STATE:
+        /* istanbul ignore next: hard to hit */
+        case Constants.PRE_GRACEFUL_SHUTDOWN_STATE:
+        case Constants.GRACEFUL_SHUTDOWN_STATE:
+            self.transition(errors.ShutdownAsyncError({
+                errorMessage: domainError.message,
+                errorType: domainError.type,
+                errorStack: domainError.stack,
+                currentState: currentState
+            }));
+            break;
+
+        /* istanbul ignore next: impossible else block */
+        case Constants.POST_GRACEFUL_SHUTDOWN_STATE:
+            // if something failed in after shutdown
+            // then we are in a terrible state, shutdown
+            // hard.
+            self.transition();
+            break;
+
         /* istanbul ignore next: never happens */
-        self.handleTerminate();
+        default:
+            // it's impossible to get into this state.
+            // but if we do we should terminate anyway
+            self.handleTerminate();
+            break;
     }
 };
 
@@ -307,26 +279,39 @@ function transition(error) {
     var self = this;
 
     self.uncaught.reporter.markTransition(self);
-    var nextCallback = self.errorCallbacks[self.currentState];
 
-    /* istanbul ignore else  */
-    if (nextCallback) {
-        nextCallback(error);
-    } else {
-        // it's impossible to get into this state.
-        // but if we do we should terminate anyway
+    switch (self.currentState) {
+                /* istanbul ignore next: hard to hit */
+        case Constants.INITIAL_STATE:
+        /* istanbul ignore next: hard to hit */
+        case Constants.ON_ERROR_STATE:
+        /* istanbul ignore next: hard to hit */
+        case Constants.PRE_LOGGING_ERROR_STATE:
+        case Constants.LOGGING_ERROR_STATE:
+            self.onLoggerFatal(error);
+            break;
+
+        /* istanbul ignore next: hard to hit */
+        case Constants.POST_LOGGING_ERROR_STATE:
+        /* istanbul ignore next: hard to hit */
+        case Constants.PRE_GRACEFUL_SHUTDOWN_STATE:
+        case Constants.GRACEFUL_SHUTDOWN_STATE:
+            self.onGracefulShutdown(error);
+            break;
+
+        /* istanbul ignore next: impossible else block */
+        case Constants.POST_GRACEFUL_SHUTDOWN_STATE:
+            // if something failed in after shutdown
+            // then we are in a terrible state, shutdown
+            // hard.
+            self.handleTerminate();
+            break;
+
         /* istanbul ignore next: never happens */
-        self.handleTerminate();
+        default:
+            // it's impossible to get into this state.
+            // but if we do we should terminate anyway
+            self.handleTerminate();
+            break;
     }
 };
-
-function asyncOnce(fn) {
-    return once(function defer() {
-        var args = arguments;
-        var self = this;
-
-        process.nextTick(function callIt() {
-            fn.apply(self, args);
-        });
-    });
-}
