@@ -5,10 +5,10 @@ var process = require('process');
 var globalSetTimeout = require('timers').setTimeout;
 var globalClearTimeout = require('timers').clearTimeout;
 
-var errors = require('./errors.js');
-var structures = require('./structures.js');
-var Constants = require('./constants.js');
-var UncaughtExceptionHandler = require('./uncaught-handler.js');
+var errors = require('./uncaught/errors.js');
+var structures = require('./uncaught/structures.js');
+var Constants = require('./uncaught/constants.js');
+var UncaughtExceptionHandler = require('./uncaught/uncaught-handler.js');
 
 module.exports = createUncaught;
 
@@ -55,6 +55,19 @@ function handleError(error) {
 
 function createUncaught(options) {
     /*eslint complexity: [2, 20], max-statements: [2, 25]*/
+    checkOptions(options);
+
+    var uncaught = new UncaughtException(options);
+    uncaught.reporter.reportConfig();
+
+    return uncaughtListener;
+
+    function uncaughtListener(error) {
+        uncaught.handleError(error);
+    }
+}
+
+function checkOptions(options) {
     if (!options || typeof options.logger !== 'object') {
         throw errors.LoggerRequired({
             logger: options && options.logger
@@ -76,15 +89,6 @@ function createUncaught(options) {
             logger: logger,
             keys: Object.keys(logger)
         });
-    }
-
-    var uncaught = new UncaughtException(options);
-    uncaught.reporter.reportConfig();
-
-    return uncaughtListener;
-
-    function uncaughtListener(error) {
-        uncaught.handleError(error);
     }
 }
 

@@ -2,13 +2,12 @@
 
 var once = require('once');
 var process = require('process');
-var os = require('os');
 var domain = require('domain');
-var jsonStringify = require('json-stringify-safe');
 
-var tryCatch = require('./lib/try-catch-it.js');
+var tryCatch = require('../lib/try-catch-it.js');
 var errors = require('./errors.js');
 var Constants = require('./constants.js');
+var BackupFileLog = require('./backup-file-log.js');
 
 module.exports = UncaughtExceptionHandler;
 
@@ -265,7 +264,9 @@ function onDomainError(domainError) {
     var self = this;
     var currentState = self.currentState;
 
-    if (currentState === Constants.PRE_LOGGING_ERROR_STATE ||
+    if (currentState === Constants.INITIAL_STATE ||
+        currentState === Constants.ON_ERROR_STATE ||
+        currentState === Constants.PRE_LOGGING_ERROR_STATE ||
         currentState === Constants.LOGGING_ERROR_STATE
     ) {
         self.transition(errors.LoggerAsyncError({
@@ -275,6 +276,7 @@ function onDomainError(domainError) {
             currentState: currentState
         }));
     } else if (
+        currentState === Constants.POST_LOGGING_ERROR_STATE ||
         currentState === Constants.PRE_GRACEFUL_SHUTDOWN_STATE ||
         currentState === Constants.GRACEFUL_SHUTDOWN_STATE
     ) {
@@ -316,60 +318,6 @@ function transition(error) {
         /* istanbul ignore next: never happens */
         self.handleTerminate();
     }
-};
-
-function BackupFileLog(fs, backupFile) {
-    var self = this;
-
-    self.fs = fs;
-    self.backupFile = backupFile;
-
-    self.lines = {};
-}
-
-BackupFileLog.prototype.log =
-function log(message, error) {
-    var self = this;
-
-    if (!self.backupFile) {
-        return;
-    }
-
-    var str = self.stringifyError(error, message);
-    self.lines[message] = str;
-    self.safeAppend(self.fs, self.backupFile, str);
-};
-
-BackupFileLog.prototype.stringifyError =
-function stringifyError(error, uncaughtType) {
-    var d = new Date();
-
-    return jsonStringify({
-        message: error.message,
-        type: error.type,
-        _uncaughtType: uncaughtType,
-        pid: process.pid,
-        hostname: os.hostname(),
-        ts: d.toISOString(),
-        stack: error.stack
-    }) + '\n';
-};
-
-BackupFileLog.prototype.safeAppend =
-function safeAppend(fs, backupFile, str) {
-    // try appending to the file. If this throws then just
-    // ignore it and carry on. If we cannot write to this file
-    // like it doesnt exist or read only file system then there
-    // is no recovering
-    tryCatch(function append() {
-        if (backupFile === 'stdout') {
-            process.stdout.write(str);
-        } else if (backupFile === 'stderr') {
-            process.stderr.write(str);
-        } else {
-            fs.appendFileSync(backupFile, str);
-        }
-    });
 };
 
 function asyncOnce(fn) {
