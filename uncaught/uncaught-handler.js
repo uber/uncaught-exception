@@ -42,11 +42,9 @@ function handleError(error) {
     var currentDomain = self.currentDomain = domain.create();
     currentDomain.on('error', onDomainError);
 
-    currentDomain.run(handleLogError);
-
-    function handleLogError() {
+    currentDomain.run(function handleLogError() {
         self.handleLogError();
-    }
+    });
 
     function onDomainError(domainError) {
         self.onDomainError(domainError);
@@ -64,7 +62,9 @@ function handleLogError() {
 
     self.uncaught.reporter.reportPreLogging(self);
 
-    var tuple = tryCatch(invokeLoggerFatal);
+    var tuple = tryCatch(function invokeLoggerFatal() {
+        self.invokeLoggerFatal();
+    });
 
     self.loggerError = tuple[0];
     self.uncaught.reporter.reportLogging(self);
@@ -75,10 +75,6 @@ function handleLogError() {
             errorType: self.loggerError.type,
             errorStack: self.loggerError.stack
         }));
-    }
-
-    function invokeLoggerFatal() {
-        self.invokeLoggerFatal();
     }
 
     function onlogtimeout() {
@@ -140,7 +136,9 @@ function handleGracefulShutdown() {
 
     self.uncaught.reporter.reportPreGracefulShutdown(self);
 
-    var tuple = tryCatch(invokeGracefulShutdown);
+    var tuple = tryCatch(function invokeGracefulShutdown() {
+        self.invokeGracefulShutdown();
+    });
 
     self.shutdownError = tuple[0];
     self.uncaught.reporter.reportShutdown(self);
@@ -151,10 +149,6 @@ function handleGracefulShutdown() {
             errorType: self.shutdownError.type,
             errorStack: self.shutdownError.stack
         }));
-    }
-
-    function invokeGracefulShutdown() {
-        self.invokeGracefulShutdown();
     }
 
     function onshutdowntimeout() {
@@ -214,13 +208,11 @@ function internalTerminate(allState) {
 
     // try and swallow the exception, if you have an
     // exception in preAbort then you're fucked, abort().
-    tryCatch(invokePreAbort);
+    tryCatch(function invokePreAbort() {
+        preAbort(allState);
+    });
     /* istanbul ignore next: abort() is untestable */
     process.abort();
-
-    function invokePreAbort() {
-        preAbort(allState);
-    }
 };
 
 UncaughtExceptionHandler.prototype.onDomainError =
