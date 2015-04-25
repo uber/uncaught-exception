@@ -304,7 +304,7 @@ UncaughtExceptionHandler.prototype.transition =
 function transition(error) {
     var self = this;
 
-    /* report to the memory reporter about state transitions */
+    self.uncaught.reporter.markTransition(self);
     var nextCallback = self.errorCallbacks[self.currentState];
 
     /* istanbul ignore else  */

@@ -44,12 +44,18 @@ function UncaughtExceptionStateMachine() {
 
     this.transitions = [];
     this.states = {};
+    this.markedTransitions = [];
 }
 
 UncaughtExceptionStateMachine.prototype.addTransition =
 function addTransition(transition) {
     this.transitions.push(transition);
     this.states[transition.stateName] = transition;
+};
+
+UncaughtExceptionStateMachine.prototype.markTransition =
+function markTransition(currentState) {
+    this.markedTransitions.push(currentState);
 };
 
 function UncaughtExceptionConfigValue(opts) {
@@ -138,6 +144,11 @@ function createStateMachine(error) {
     ALL_STATES.push(stateMachine);
 
     return stateMachine;
+};
+
+UncaughtMemoryReporter.prototype.markTransition =
+function markTransition(handler) {
+    handler.stateMachine.markTransition(handler.currentState);
 };
 
 UncaughtMemoryReporter.prototype.reportPreLogging =
