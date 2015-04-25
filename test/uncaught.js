@@ -1,5 +1,6 @@
-// cannot use tape because it adds uncaughtException listeners
-var test = require('assert-tap').test;
+'use strict';
+
+var test = require('tape');
 var process = require('process');
 var FakeFs = require('fake-fs');
 var Timer = require('time-mock');
@@ -255,7 +256,7 @@ test('handles timeout for logger', function t(assert) {
 
             assert.equal(line2.message, 'timeout error');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'logger.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.logger.timeout');
@@ -307,7 +308,7 @@ test('handles exceptions for logger', function t(assert) {
 
             assert.equal(line2.message, 'exception error');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'logger.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.logger.threw');
@@ -361,7 +362,7 @@ test('handles async exceptions for logger', function t(assert) {
 
             assert.equal(line2.message, 'async exception error');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'logger.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.logger.async-error');

@@ -7,6 +7,7 @@ found when debugging a core dump
 
 */
 
+var ALL_STATES = [];
 var Constants = require('./constants.js');
 
 var structures = {
@@ -25,7 +26,9 @@ var structures = {
     UncaughtExceptionPostGracefulShutdownState:
         UncaughtExceptionPostGracefulShutdownState,
     UncaughtExceptionStruct:
-        UncaughtExceptionStruct
+        UncaughtExceptionStruct,
+    UncaughtMemoryReporter:
+        UncaughtMemoryReporter
 };
 
 module.exports = structures;
@@ -78,7 +81,7 @@ function UncaughtExceptionLoggingErrorState(opts) {
 function UncaughtExceptionPreGracefulShutdownState(opts) {
     this.stateName = Constants.PRE_GRACEFUL_SHUTDOWN_STATE;
     this.currentState = opts.currentState;
-    this.fatalLoggingError = opts.fatalLoggingError;
+    this.loggerAsyncError = opts.loggerAsyncError;
     this.backupFileUncaughtErrorLine = opts.backupFileUncaughtErrorLine;
     this.backupFileLoggerErrorLine = opts.backupFileLoggerErrorLine;
     this.shutdownTimer = opts.shutdownTimer;
@@ -97,3 +100,112 @@ function UncaughtExceptionPostGracefulShutdownState(opts) {
     this.backupFileUncaughtErrorLine = opts.backupFileUncaughtErrorLine;
     this.backupFileShutdownErrorLine = opts.backupFileShutdownErrorLine;
 }
+
+function UncaughtMemoryReporter(uncaught) {
+    var self = this;
+
+    self.uncaught = uncaught;
+
+    self.configValue = null;
+}
+
+UncaughtMemoryReporter.prototype.reportConfig =
+function reportConfig() {
+    var self = this;
+
+    self.configValue = new structures.UncaughtExceptionConfigValue({
+        prefix: self.uncaught.prefix,
+        backupFile: self.uncaught.backupFile,
+        loggerTimeout: self.uncaught.loggerTimeout,
+        shutdownTimeout: self.uncaught.shutdownTimeout,
+        hasGracefulShutdown: !!self.uncaught.options.gracefulShutdown,
+        hasPreAbort: !!self.uncaught.options.preAbort,
+        hasFakeFS: !!self.uncaught.options.fs,
+        hasFakeSetTimeout: !!self.uncaught.options.setTimeout,
+        hasFakeClearTimeout: !!self.uncaught.options.clearTimeout
+    });
+};
+
+UncaughtMemoryReporter.prototype.createStateMachine =
+function createStateMachine(error) {
+    var self = this;
+    var type = error.type || '';
+
+    var stateMachine = new structures.UncaughtExceptionStateMachine();
+    stateMachine.configValue = self.configValue;
+    stateMachine.uncaughtError = error;
+    stateMachine.uncaughtErrorType = type;
+    ALL_STATES.push(stateMachine);
+
+    return stateMachine;
+};
+
+UncaughtMemoryReporter.prototype.reportPreLogging =
+function reportPreLogging(handler) {
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionPreLoggingErrorState({
+            currentState: handler.currentState,
+            currentDomain: handler.currentDomain,
+            timerHandle: handler.timerHandles.logger
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportLogging =
+function reportLogging(handler) {
+    var lines = handler.backupLog.lines;
+
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionLoggingErrorState({
+            backupFileLine: lines['exception.occurred'],
+            currentState: handler.currentState,
+            loggerError: handler.loggerError
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportPreGracefulShutdown =
+function reportPreGracefulShutdown(handler) {
+    var lines = handler.backupLog.lines;
+
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionPreGracefulShutdownState({
+            currentState: handler.currentState,
+            loggerAsyncError: handler.loggerAsyncError,
+            backupFileUncaughtErrorLine: lines['logger.uncaught.exception'],
+            backupFileLoggerErrorLine: lines['logger.failure'],
+            shutdownTimer: handler.timerHandles.shutdown
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportShutdown =
+function reportShutdown(handler) {
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionGracefulShutdownState({
+            currentState: handler.currentState,
+            shutdownError: handler.shutdownError
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportPostGracefulShutdown =
+function reportPostGracefulShutdown(handler) {
+    var lines = handler.backupLog.lines;
+
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionPostGracefulShutdownState({
+            currentState: handler.currentState,
+            gracefulShutdownError: handler.shutdownAsyncError,
+            backupFileUncaughtErrorLine: lines['shutdown.uncaught.exception'],
+            backupFileShutdownErrorLine: lines['shutdown.failure']
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.getAllState =
+function getAllState(handler) {
+    return new structures.UncaughtExceptionStruct(
+        handler.stateMachine, ALL_STATES
+    );
+};

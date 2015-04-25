@@ -1,4 +1,6 @@
-var test = require('assert-tap').test;
+'use strict';
+
+var test = require('tape');
 var path = require('path');
 var process = require('process');
 var exec = require('child_process').exec;
@@ -109,7 +111,7 @@ test('writes to backupFile for failing logger', function t(assert) {
 
             assert.equal(line2.message, 'crash with file');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'logger.uncaught.exception');
 
             assert.equal(line3.message,
                 'oops in logger.fatal()');
@@ -146,7 +148,7 @@ test('writes to stdout with backupFile stdout', function t(assert) {
 
         assert.equal(line2.message, 'crash with file');
         assert.equal(line2._uncaughtType,
-            'uncaught.exception');
+            'logger.uncaught.exception');
 
         assert.equal(line3.message,
             'oops in logger.fatal()');
@@ -182,7 +184,7 @@ test('writes to stderr with backupFile stderr', function t(assert) {
 
         assert.equal(line2.message, 'crash with file');
         assert.equal(line2._uncaughtType,
-            'uncaught.exception');
+            'logger.uncaught.exception');
 
         assert.equal(line3.message,
             'oops in logger.fatal()');
@@ -224,7 +226,7 @@ test('async failing logger', function t(assert) {
 
             assert.equal(line2.message, 'async error logger');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'logger.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.logger.async-error');
@@ -269,7 +271,7 @@ test('writes to backupFile for failing shutdown', function t(assert) {
             assert.equal(line2.message,
                 'crash with bad shutdown');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'shutdown.uncaught.exception');
 
             assert.equal(line3.message,
                 'oops in graceful shutdown');
@@ -314,7 +316,7 @@ test('handles a naughty shutdown', function t(assert) {
             assert.equal(line2.message,
                 'crash with naughty shutdown');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'shutdown.uncaught.exception');
 
             fs.unlink(loc, assert.end);
         });
@@ -355,7 +357,7 @@ test('async failing shutdown', function t(assert) {
             assert.equal(line2.message,
                 'async failing shutdown');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'shutdown.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.shutdown.async-error');
@@ -398,7 +400,7 @@ test('handles a timeout logger', function t(assert) {
 
             assert.equal(line2.message, 'timeout logger');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'logger.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.logger.timeout');
@@ -439,7 +441,7 @@ test('handles a thrown logger', function t(assert) {
 
             assert.equal(line2.message, 'thrown logger');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'logger.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.logger.threw');
@@ -481,7 +483,7 @@ test('handles a timeout shutdown', function t(assert) {
 
             assert.equal(line2.message, 'timeout shutdown');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'shutdown.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.shutdown.timeout');
@@ -523,7 +525,7 @@ test('handles a thrown shutdown', function t(assert) {
 
             assert.equal(line2.message, 'thrown shutdown');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'shutdown.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.shutdown.threw');
@@ -566,7 +568,7 @@ test('handles a timeout + late succeed', function t(assert) {
 
             assert.equal(line2.message, 'late timeout logger');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'logger.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.logger.timeout');
@@ -608,7 +610,7 @@ test('handles a shutdown + late succeed', function t(assert) {
 
             assert.equal(line2.message, 'late shutdown logger');
             assert.equal(line2._uncaughtType,
-                'uncaught.exception');
+                'shutdown.uncaught.exception');
 
             assert.equal(line3.type,
                 'uncaught-exception.shutdown.timeout');

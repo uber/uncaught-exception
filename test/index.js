@@ -1,4 +1,6 @@
-var test = require('assert-tap').test;
+'use strict';
+
+var test = require('tape');
 var process = require('process');
 var path = require('path');
 var exec = require('child_process').exec;
