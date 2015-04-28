@@ -11,6 +11,7 @@ var process = require('process');
 var setTimeout = require('timers').setTimeout;
 
 var uncaughtException = require('../uncaught.js');
+var EventReporter = require('./lib/event-reporter.js');
 var opts = JSON.parse(process.argv[2]);
 
 if (opts.consoleLogger) {
@@ -159,7 +160,25 @@ opts.preAbort = function preAbort() {
     if (opts.throwInAbort) {
         throw new Error('bug in preAbort');
     }
+    if (opts.exitOnPreAbort) {
+        process.exit(101);
+    }
 };
+
+if (opts.exitCode && opts.abortOnUncaught === false) {
+    opts.reporter = EventReporter();
+    opts.reporter.once('reportPostLogging', function a() {
+        setTimeout(function onExit() {
+            process.exit(opts.exitCode);
+        }, 0);
+    });
+}
+
+if (opts.exitOnGracefulShutdown) {
+    opts.gracefulShutdown = function exitIt() {
+        process.exit(101);
+    };
+}
 
 if (opts.abortOnUncaught === undefined) {
     opts.abortOnUncaught = true;

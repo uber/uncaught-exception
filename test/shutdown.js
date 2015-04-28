@@ -622,6 +622,107 @@ test('handles a shutdown + late succeed', function t(assert) {
     });
 });
 
+test('continue on exception', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        message: 'continue on exception',
+        abortOnUncaught: false,
+        consoleLogger: true,
+        exitCode: 3,
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, 3);
+
+        assert.equal(stdout.indexOf('continue on exception'), -1);
+        assert.notEqual(
+            stderr.indexOf('continue on exception'), -1);
+
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 1);
+            var line1 = JSON.parse(lines[0]);
+
+            assert.equal(line1.message, 'continue on exception');
+            assert.equal(line1._uncaughtType, 'exception.occurred');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
+test('continue on exception - do not call graceful', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        message: 'continue on exception',
+        abortOnUncaught: false,
+        consoleLogger: true,
+        exitOnGracefulShutdown: true,
+        exitCode: 3,
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, 3);
+
+        assert.equal(stdout.indexOf('continue on exception'), -1);
+        assert.notEqual(
+            stderr.indexOf('continue on exception'), -1);
+
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 1);
+            var line1 = JSON.parse(lines[0]);
+
+            assert.equal(line1.message, 'continue on exception');
+            assert.equal(line1._uncaughtType, 'exception.occurred');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
+test('continue on exception - do not call preAbort', function t(assert) {
+    var loc = path.join(__dirname, 'backupFile.log');
+
+    spawnChild({
+        message: 'continue on exception',
+        abortOnUncaught: false,
+        consoleLogger: true,
+        exitOnPreAbort: true,
+        exitCode: 3,
+        backupFile: loc
+    }, function onerror(err, stdout, stderr) {
+        assert.ok(err);
+        assert.equal(err.code, 3);
+
+        assert.equal(stdout.indexOf('continue on exception'), -1);
+        assert.notEqual(
+            stderr.indexOf('continue on exception'), -1);
+
+        fs.readFile(loc, function onfile(err2, buf) {
+            assert.ifError(err2);
+
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 1);
+            var line1 = JSON.parse(lines[0]);
+
+            assert.equal(line1.message, 'continue on exception');
+            assert.equal(line1._uncaughtType, 'exception.occurred');
+
+            fs.unlink(loc, assert.end);
+        });
+    });
+});
+
 test('handles writing to bad file', function t(assert) {
     var loc = path.join(__dirname, 'does', 'not', 'exist');
 

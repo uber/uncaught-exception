@@ -27,7 +27,7 @@ test('check coverage', function t(assert) {
 function getCoverage(cb) {
     var cmd = path.join(__dirname, '..', 'node_modules',
         '.bin', 'istanbul');
-    exec(cmd + ' check-coverage --branches=100', {
+    exec(cmd + ' check-coverage --branches=100 --lines=100', {
         cwd: path.join(__dirname, '..')
     }, onCmd);
 

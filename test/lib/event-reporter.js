@@ -11,6 +11,9 @@ var EVENTS = [
     'reportPreLogging',
     'reportLogging',
     'reportPostLogging',
+    'reportPreGracefulShutdown',
+    'reportShutdown',
+    'reportPostGracefulShutdown',
     'markTransition'
 ];
 
@@ -31,6 +34,10 @@ function createStateMachine(a) {
 
     return UncaughtMemoryReporter.prototype.createStateMachine
         .apply(this, arguments);
+};
+
+EventReporter.prototype.getAllState = function getAllState() {
+    return {};
 };
 
 EVENTS.forEach(function addMethod(ev) {

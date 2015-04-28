@@ -177,10 +177,10 @@ test('writes to backupFile on error', function t(assert) {
     });
 });
 
-test('writes to backupFile on error', function t(assert) {
+test('calls gracefulShutdown', function t(assert) {
     var logger = {
         fatal: function fatal(message, error, cb) {
-            cb(new Error('cant log'));
+            cb(null);
         }
     };
     var fs = FakeFs();
@@ -190,33 +190,25 @@ test('writes to backupFile on error', function t(assert) {
     var remove = uncaught({
         logger: logger,
         reporter: reporter,
+        gracefulShutdown: function graceful() {
+            var bool = fs.existsSync('/foo/bar');
+            assert.equal(bool, true);
+
+            var content = fs.readFileSync('/foo/bar', 'utf8');
+            var lines = content.trim().split('\n');
+
+            assert.equal(lines.length, 1);
+
+            var line1 = JSON.parse(lines[0]);
+            assert.equal(line1.message, 'error test');
+            assert.ok(line1.stack);
+
+            remove();
+            assert.end();
+        },
+        abortOnUncaught: true,
         fs: fs,
         backupFile: '/foo/bar'
-    });
-
-    reporter.once('reportPostLogging', function onEvent() {
-        var bool = fs.existsSync('/foo/bar');
-        assert.equal(bool, true);
-
-        var content = fs.readFileSync('/foo/bar', 'utf8');
-        var lines = content.trim().split('\n');
-
-        assert.equal(lines.length, 3);
-
-        var line1 = JSON.parse(lines[0]);
-        assert.equal(line1.message, 'error test');
-        assert.ok(line1.stack);
-
-        var line2 = JSON.parse(lines[1]);
-        assert.equal(line2.message, 'error test');
-        assert.ok(line2.stack);
-
-        var line3 = JSON.parse(lines[2]);
-        assert.equal(line3.message, 'cant log');
-        assert.ok(line3.stack);
-
-        remove();
-        assert.end();
     });
 
     process.nextTick(function throwIt() {
@@ -448,6 +440,63 @@ test('handles async exceptions for logger', function t(assert) {
 
         remove();
         assert.end();
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('async exception error');
+    });
+});
+
+test('handles async exceptions for logger', function t(assert) {
+    var logger = {
+        fatal: function fatal() {
+            // simulate a bug
+            process.nextTick(function throwIt() {
+                throw new Error('bug in logger implementation');
+            });
+        }
+    };
+
+    var fs = FakeFs();
+    fs.dir('/foo');
+    var reporter = new EventReporter();
+
+    var remove = uncaught({
+        logger: logger,
+        fs: fs,
+        reporter: reporter,
+        gracefulShutdown: function graceful() {
+            assert.ok(true);
+
+            assert.ok(fs.existsSync('/foo/bar'));
+
+            var buf = fs.readFileSync('/foo/bar');
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 3);
+
+            var line1 = JSON.parse(lines[0]);
+            var line2 = JSON.parse(lines[1]);
+            var line3 = JSON.parse(lines[2]);
+
+            assert.equal(line1.message, 'async exception error');
+            assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            assert.equal(line2.message, 'async exception error');
+            assert.equal(line2._uncaughtType,
+                'logger.uncaught.exception');
+
+            assert.equal(line3.type,
+                'uncaught-exception.logger.async-error');
+            assert.equal(line3._uncaughtType,
+                'logger.failure');
+
+            remove();
+            assert.end();
+        },
+        abortOnUncaught: true,
+        backupFile: '/foo/bar'
     });
 
     process.nextTick(function throwIt() {
