@@ -42,7 +42,8 @@ function UncaughtException(options) {
     self.preAbort = typeof options.preAbort === 'function' ?
         options.preAbort : noop;
 
-    self.reporter = new structures.UncaughtMemoryReporter(self);
+    self.reporter = options.reporter ||
+        new structures.UncaughtMemoryReporter();
     self.handlers = [];
 }
 
