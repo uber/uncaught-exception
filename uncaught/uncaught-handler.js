@@ -120,7 +120,10 @@ function onLoggerFatal(err) {
         self.loggerAsyncError = err;
         self.backupLog.log('logger.uncaught.exception', self.uncaughtError);
         self.backupLog.log('logger.failure', err);
+
     }
+
+    self.uncaught.reporter.reportPostLogging(self);
 
     self.handleGracefulShutdown();
 };
