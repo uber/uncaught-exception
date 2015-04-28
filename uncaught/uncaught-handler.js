@@ -42,9 +42,9 @@ function handleError(error) {
     var currentDomain = self.currentDomain = domain.create();
     currentDomain.on('error', onDomainError);
 
-    currentDomain.run(function handleLogError() {
-        self.handleLogError();
-    });
+    currentDomain.enter();
+    self.handleLogError();
+    currentDomain.exit();
 
     function onDomainError(domainError) {
         self.onDomainError(domainError);
