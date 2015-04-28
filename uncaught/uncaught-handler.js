@@ -132,6 +132,11 @@ UncaughtExceptionHandler.prototype.handleGracefulShutdown =
 function handleGracefulShutdown() {
     var self = this;
 
+    if (!self.uncaught.abortOnUncaught) {
+        self.currentState = Constants.POST_GRACEFUL_SHUTDOWN_STATE;
+        return self.transition();
+    }
+
     self.currentState = Constants.PRE_GRACEFUL_SHUTDOWN_STATE;
     self.timerHandles.shutdown = self.uncaught.timers.setTimeout(
         onshutdowntimeout, self.uncaught.shutdownTimeout
@@ -199,6 +204,10 @@ function onGracefulShutdown(err) {
 UncaughtExceptionHandler.prototype.handleTerminate =
 function handleTerminate() {
     var self = this;
+
+    if (!self.uncaught.abortOnUncaught) {
+        return;
+    }
 
     var allState = self.uncaught.reporter.getAllState(self);
     self.internalTerminate(allState);

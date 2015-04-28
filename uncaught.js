@@ -32,6 +32,9 @@ function UncaughtException(options) {
     self.shutdownTimeout =
         typeof options.shutdownTimeout === 'number' ?
         options.shutdownTimeout : Constants.SHUTDOWN_TIMEOUT;
+    self.abortOnUncaught =
+        typeof options.abortOnUncaught === 'boolean' ?
+        options.abortOnUncaught : false;
 
     self.gracefulShutdown =
         typeof options.gracefulShutdown === 'function' ?
