@@ -58,7 +58,7 @@ function createUncaught(options) {
     checkOptions(options);
 
     var uncaught = new UncaughtException(options);
-    uncaught.reporter.reportConfig();
+    uncaught.reporter.reportConfig(uncaught);
 
     return uncaughtListener;
 

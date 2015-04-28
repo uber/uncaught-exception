@@ -107,28 +107,26 @@ function UncaughtExceptionPostGracefulShutdownState(opts) {
     this.backupFileShutdownErrorLine = opts.backupFileShutdownErrorLine;
 }
 
-function UncaughtMemoryReporter(uncaught) {
+function UncaughtMemoryReporter() {
     var self = this;
-
-    self.uncaught = uncaught;
 
     self.configValue = null;
 }
 
 UncaughtMemoryReporter.prototype.reportConfig =
-function reportConfig() {
+function reportConfig(uncaught) {
     var self = this;
 
     self.configValue = new structures.UncaughtExceptionConfigValue({
-        prefix: self.uncaught.prefix,
-        backupFile: self.uncaught.backupFile,
-        loggerTimeout: self.uncaught.loggerTimeout,
-        shutdownTimeout: self.uncaught.shutdownTimeout,
-        hasGracefulShutdown: !!self.uncaught.options.gracefulShutdown,
-        hasPreAbort: !!self.uncaught.options.preAbort,
-        hasFakeFS: !!self.uncaught.options.fs,
-        hasFakeSetTimeout: !!self.uncaught.options.setTimeout,
-        hasFakeClearTimeout: !!self.uncaught.options.clearTimeout
+        prefix: uncaught.prefix,
+        backupFile: uncaught.backupFile,
+        loggerTimeout: uncaught.loggerTimeout,
+        shutdownTimeout: uncaught.shutdownTimeout,
+        hasGracefulShutdown: !!uncaught.options.gracefulShutdown,
+        hasPreAbort: !!uncaught.options.preAbort,
+        hasFakeFS: !!uncaught.options.fs,
+        hasFakeSetTimeout: !!uncaught.options.setTimeout,
+        hasFakeClearTimeout: !!uncaught.options.clearTimeout
     });
 };
 
