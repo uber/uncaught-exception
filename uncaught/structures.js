@@ -19,6 +19,8 @@ var structures = {
         UncaughtExceptionPreLoggingErrorState,
     UncaughtExceptionLoggingErrorState:
         UncaughtExceptionLoggingErrorState,
+    UncaughtExceptionPostLoggingErrorState:
+        UncaughtExceptionPostLoggingErrorState,
     UncaughtExceptionPreGracefulShutdownState:
         UncaughtExceptionPreGracefulShutdownState,
     UncaughtExceptionGracefulShutdownState:
@@ -84,12 +86,17 @@ function UncaughtExceptionLoggingErrorState(opts) {
     this.loggerError = opts.loggerError;
 }
 
-function UncaughtExceptionPreGracefulShutdownState(opts) {
-    this.stateName = Constants.PRE_GRACEFUL_SHUTDOWN_STATE;
+function UncaughtExceptionPostLoggingErrorState(opts) {
+    this.stateName = Constants.POST_LOGGING_ERROR_STATE;
     this.currentState = opts.currentState;
     this.loggerAsyncError = opts.loggerAsyncError;
     this.backupFileUncaughtErrorLine = opts.backupFileUncaughtErrorLine;
     this.backupFileLoggerErrorLine = opts.backupFileLoggerErrorLine;
+}
+
+function UncaughtExceptionPreGracefulShutdownState(opts) {
+    this.stateName = Constants.PRE_GRACEFUL_SHUTDOWN_STATE;
+    this.currentState = opts.currentState;
     this.shutdownTimer = opts.shutdownTimer;
 }
 
@@ -107,28 +114,26 @@ function UncaughtExceptionPostGracefulShutdownState(opts) {
     this.backupFileShutdownErrorLine = opts.backupFileShutdownErrorLine;
 }
 
-function UncaughtMemoryReporter(uncaught) {
+function UncaughtMemoryReporter() {
     var self = this;
-
-    self.uncaught = uncaught;
 
     self.configValue = null;
 }
 
 UncaughtMemoryReporter.prototype.reportConfig =
-function reportConfig() {
+function reportConfig(uncaught) {
     var self = this;
 
     self.configValue = new structures.UncaughtExceptionConfigValue({
-        prefix: self.uncaught.prefix,
-        backupFile: self.uncaught.backupFile,
-        loggerTimeout: self.uncaught.loggerTimeout,
-        shutdownTimeout: self.uncaught.shutdownTimeout,
-        hasGracefulShutdown: !!self.uncaught.options.gracefulShutdown,
-        hasPreAbort: !!self.uncaught.options.preAbort,
-        hasFakeFS: !!self.uncaught.options.fs,
-        hasFakeSetTimeout: !!self.uncaught.options.setTimeout,
-        hasFakeClearTimeout: !!self.uncaught.options.clearTimeout
+        prefix: uncaught.prefix,
+        backupFile: uncaught.backupFile,
+        loggerTimeout: uncaught.loggerTimeout,
+        shutdownTimeout: uncaught.shutdownTimeout,
+        hasGracefulShutdown: !!uncaught.options.gracefulShutdown,
+        hasPreAbort: !!uncaught.options.preAbort,
+        hasFakeFS: !!uncaught.options.fs,
+        hasFakeSetTimeout: !!uncaught.options.setTimeout,
+        hasFakeClearTimeout: !!uncaught.options.clearTimeout
     });
 };
 
@@ -175,16 +180,25 @@ function reportLogging(handler) {
     );
 };
 
-UncaughtMemoryReporter.prototype.reportPreGracefulShutdown =
-function reportPreGracefulShutdown(handler) {
+UncaughtMemoryReporter.prototype.reportPostLogging =
+function reportPostLogging(handler) {
     var lines = handler.backupLog.lines;
 
     handler.stateMachine.addTransition(
-        new structures.UncaughtExceptionPreGracefulShutdownState({
+        new structures.UncaughtExceptionPostLoggingErrorState({
             currentState: handler.currentState,
             loggerAsyncError: handler.loggerAsyncError,
             backupFileUncaughtErrorLine: lines['logger.uncaught.exception'],
-            backupFileLoggerErrorLine: lines['logger.failure'],
+            backupFileLoggerErrorLine: lines['logger.failure']
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportPreGracefulShutdown =
+function reportPreGracefulShutdown(handler) {
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionPreGracefulShutdownState({
+            currentState: handler.currentState,
             shutdownTimer: handler.timerHandles.shutdown
         })
     );

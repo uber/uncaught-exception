@@ -32,6 +32,9 @@ function UncaughtException(options) {
     self.shutdownTimeout =
         typeof options.shutdownTimeout === 'number' ?
         options.shutdownTimeout : Constants.SHUTDOWN_TIMEOUT;
+    self.abortOnUncaught =
+        typeof options.abortOnUncaught === 'boolean' ?
+        options.abortOnUncaught : false;
 
     self.gracefulShutdown =
         typeof options.gracefulShutdown === 'function' ?
@@ -39,7 +42,8 @@ function UncaughtException(options) {
     self.preAbort = typeof options.preAbort === 'function' ?
         options.preAbort : noop;
 
-    self.reporter = new structures.UncaughtMemoryReporter(self);
+    self.reporter = options.reporter ||
+        new structures.UncaughtMemoryReporter();
     self.handlers = [];
 }
 
@@ -58,7 +62,7 @@ function createUncaught(options) {
     checkOptions(options);
 
     var uncaught = new UncaughtException(options);
-    uncaught.reporter.reportConfig();
+    uncaught.reporter.reportConfig(uncaught);
 
     return uncaughtListener;
 

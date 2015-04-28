@@ -42,11 +42,9 @@ function handleError(error) {
     var currentDomain = self.currentDomain = domain.create();
     currentDomain.on('error', onDomainError);
 
-    currentDomain.run(handleLogError);
-
-    function handleLogError() {
-        self.handleLogError();
-    }
+    currentDomain.enter();
+    self.handleLogError();
+    currentDomain.exit();
 
     function onDomainError(domainError) {
         self.onDomainError(domainError);
@@ -64,7 +62,9 @@ function handleLogError() {
 
     self.uncaught.reporter.reportPreLogging(self);
 
-    var tuple = tryCatch(invokeLoggerFatal);
+    var tuple = tryCatch(function invokeLoggerFatal() {
+        self.invokeLoggerFatal();
+    });
 
     self.loggerError = tuple[0];
     self.uncaught.reporter.reportLogging(self);
@@ -75,10 +75,6 @@ function handleLogError() {
             errorType: self.loggerError.type,
             errorStack: self.loggerError.stack
         }));
-    }
-
-    function invokeLoggerFatal() {
-        self.invokeLoggerFatal();
     }
 
     function onlogtimeout() {
@@ -124,7 +120,10 @@ function onLoggerFatal(err) {
         self.loggerAsyncError = err;
         self.backupLog.log('logger.uncaught.exception', self.uncaughtError);
         self.backupLog.log('logger.failure', err);
+
     }
+
+    self.uncaught.reporter.reportPostLogging(self);
 
     self.handleGracefulShutdown();
 };
@@ -133,6 +132,11 @@ UncaughtExceptionHandler.prototype.handleGracefulShutdown =
 function handleGracefulShutdown() {
     var self = this;
 
+    if (!self.uncaught.abortOnUncaught) {
+        self.currentState = Constants.POST_GRACEFUL_SHUTDOWN_STATE;
+        return self.transition();
+    }
+
     self.currentState = Constants.PRE_GRACEFUL_SHUTDOWN_STATE;
     self.timerHandles.shutdown = self.uncaught.timers.setTimeout(
         onshutdowntimeout, self.uncaught.shutdownTimeout
@@ -140,7 +144,9 @@ function handleGracefulShutdown() {
 
     self.uncaught.reporter.reportPreGracefulShutdown(self);
 
-    var tuple = tryCatch(invokeGracefulShutdown);
+    var tuple = tryCatch(function invokeGracefulShutdown() {
+        self.invokeGracefulShutdown();
+    });
 
     self.shutdownError = tuple[0];
     self.uncaught.reporter.reportShutdown(self);
@@ -151,10 +157,6 @@ function handleGracefulShutdown() {
             errorType: self.shutdownError.type,
             errorStack: self.shutdownError.stack
         }));
-    }
-
-    function invokeGracefulShutdown() {
-        self.invokeGracefulShutdown();
     }
 
     function onshutdowntimeout() {
@@ -203,6 +205,10 @@ UncaughtExceptionHandler.prototype.handleTerminate =
 function handleTerminate() {
     var self = this;
 
+    if (!self.uncaught.abortOnUncaught) {
+        return;
+    }
+
     var allState = self.uncaught.reporter.getAllState(self);
     self.internalTerminate(allState);
 };
@@ -214,13 +220,11 @@ function internalTerminate(allState) {
 
     // try and swallow the exception, if you have an
     // exception in preAbort then you're fucked, abort().
-    tryCatch(invokePreAbort);
+    tryCatch(function invokePreAbort() {
+        preAbort(allState);
+    });
     /* istanbul ignore next: abort() is untestable */
     process.abort();
-
-    function invokePreAbort() {
-        preAbort(allState);
-    }
 };
 
 UncaughtExceptionHandler.prototype.onDomainError =
@@ -255,6 +259,7 @@ function onDomainError(domainError) {
                 errorStack: domainError.stack,
                 currentState: currentState
             }));
+            /* istanbul ignore next: onGracefulShutdown() calls abort */
             break;
 
         /* istanbul ignore next: impossible else block */
@@ -297,6 +302,7 @@ function transition(error) {
         case Constants.PRE_GRACEFUL_SHUTDOWN_STATE:
         case Constants.GRACEFUL_SHUTDOWN_STATE:
             self.onGracefulShutdown(error);
+            /* istanbul ignore next: onGracefulShutdown() calls abort */
             break;
 
         /* istanbul ignore next: impossible else block */

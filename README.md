@@ -19,6 +19,7 @@ var myLogger = {
 var onError = uncaughtHandler({
     logger: myLogger,
     prefix: 'some string prefix ',
+    abortOnUncaught: true, // opt into aborting on uncaught
     backupFile: '/path/to/uncaught-handler.log',
     gracefulShutdown: function (callback) {
         // perform some graceful shutdown here.
@@ -50,6 +51,7 @@ uncaught-exception/uncaught := (options: {
     },
     prefix?: String,
     backupFile?: String,
+    abortOnUncaught?: Boolean,
     loggerTimeout?: Number,
     shutdownTimeout?: Number,
     gracefulShutdown?: (Callback) => void,
@@ -107,6 +109,14 @@ You may also pass the string literal `"stdout"` or `"stderr"` as
   asynchronous. i.e. `node foo.js | tee file` will involve
   asynchronous writing to the `backupFile`.
 
+#### `options.abortOnUncaught`
+
+If `options.abortOnUncaught` is set to `true` the uncaught handler
+will call graceful shutdown and `process.abort()` for you.
+
+If this is set to `undefined` or `false` the uncaught handler
+will not call graceful shutdown and it will not call process abort
+
 #### `options.loggerTimeout`
 
 The `uncaughtHandler` will assume that your logger might fail or
@@ -121,6 +131,9 @@ The `uncaught-exception` module supports doing a graceful
   shutdown. Normally when an uncaught exception happens you
   want to close any servers that are open and wait for all
   sockets to exit cleanly.
+
+This function only gets called if `abortOnUncaught` is set to
+`true`.
 
 Ideally you want to empty the event loop and do a full graceful
   shutdown.
@@ -143,6 +156,9 @@ The default timeout is 30 seconds, you can pass `shutdownTimeout`
 
 You can specify your own `preAbort` handler that **MUST** be
   a synchronous function.
+
+This function only gets called if `abortOnUncaught` is set to
+`true`.
 
 The main use case is to invoke your own exit strategy instead of
   the default exit strategy which is calling `process.abort()`

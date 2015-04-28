@@ -4,6 +4,7 @@ uncaught-exception/uncaught := (options: {
     },
     prefix?: String,
     backupFile?: "stdout" | "stderr" | String,
+    abortOnUncaught?: Boolean,
     loggerTimeout?: Number,
     shutdownTimeout?: Number,
     gracefulShutdown?: (Callback) => void,
