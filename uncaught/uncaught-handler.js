@@ -259,6 +259,7 @@ function onDomainError(domainError) {
                 errorStack: domainError.stack,
                 currentState: currentState
             }));
+            /* istanbul ignore next: onGracefulShutdown() calls abort */
             break;
 
         /* istanbul ignore next: impossible else block */
@@ -301,6 +302,7 @@ function transition(error) {
         case Constants.PRE_GRACEFUL_SHUTDOWN_STATE:
         case Constants.GRACEFUL_SHUTDOWN_STATE:
             self.onGracefulShutdown(error);
+            /* istanbul ignore next: onGracefulShutdown() calls abort */
             break;
 
         /* istanbul ignore next: impossible else block */
