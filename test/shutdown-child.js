@@ -161,6 +161,10 @@ opts.preAbort = function preAbort() {
     }
 };
 
+if (opts.abortOnUncaught === undefined) {
+    opts.abortOnUncaught = true;
+}
+
 var onError = uncaughtException(opts);
 process.on('uncaughtException', onError);
 
