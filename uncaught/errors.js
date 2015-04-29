@@ -48,6 +48,13 @@ var LoggerTimeoutError = TypedError({
         'Expected it to finish within {time} ms.\n'
 });
 
+var StatsdTimeoutError = TypedError({
+    type: 'uncaught-exception.statsd.timeout',
+    message: 'uncaught-exception: the statsd.immediateIncrement() ' +
+        'method timed out.\n' +
+        'Expected it to finish within {time} ms.\n'
+});
+
 var ShutdownTimeoutError = TypedError({
     type: 'uncaught-exception.shutdown.timeout',
     message: 'uncaught-exception: the gracefulShutdown() ' +
@@ -59,6 +66,16 @@ var LoggerThrownException = TypedError({
     type: 'uncaught-exception.logger.threw',
     message: 'uncaught-exception: the logger.fatal() method ' +
         'threw an exception.\n' +
+        'Expected it to not throw at all.\n' +
+        'message: {errorMessage}.\n' +
+        'type: {errorType}.\n' +
+        'stack: {errorStack}.\n'
+});
+
+var StatsdThrownException = TypedError({
+    type: 'uncaught-exception.statsd.threw',
+    message: 'uncaught-exception: the statsd.immediateIncrement() ' +
+        'method threw an exception.\n' +
         'Expected it to not throw at all.\n' +
         'message: {errorMessage}.\n' +
         'type: {errorType}.\n' +
@@ -86,6 +103,17 @@ var LoggerAsyncError = TypedError({
         'currentState: {currentState}.\n'
 });
 
+var StatsdAsyncError = TypedError({
+    type: 'uncaught-exception.statsd.async-error',
+    message: 'uncaught-exception: An unexpected exception ' +
+        'happened whilst calling `statsd.immediateIncrement()`.\n' +
+        'Expected no exception to happen.\n' +
+        'message: {errorMessage}.\n' +
+        'type: {errorType}.\n' +
+        'stack: {errorStack}.\n' +
+        'currentState: {currentState}.\n'
+});
+
 var ShutdownAsyncError = TypedError({
     type: 'uncaught-exception.shutdown.async-error',
     message: 'uncaught-exception: An unexpected exception ' +
@@ -104,9 +132,12 @@ module.exports = {
     LoggerMethodRequired: LoggerMethodRequired,
     StatsdMethodRequired: StatsdMethodRequired,
     LoggerTimeoutError: LoggerTimeoutError,
+    StatsdTimeoutError: StatsdTimeoutError,
     ShutdownTimeoutError: ShutdownTimeoutError,
     LoggerThrownException: LoggerThrownException,
+    StatsdThrownException: StatsdThrownException,
     ShutdownThrownException: ShutdownThrownException,
     LoggerAsyncError: LoggerAsyncError,
+    StatsdAsyncError: StatsdAsyncError,
     ShutdownAsyncError: ShutdownAsyncError
 };

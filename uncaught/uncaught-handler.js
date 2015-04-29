@@ -22,11 +22,17 @@ function UncaughtExceptionHandler(uncaught) {
     self.loggerAsyncError = null;
     self.shutdownError = null;
     self.shutdownAsyncError = null;
+    self.statsdError = null;
+    self.statsdAsyncError = null;
 
     self.stateMachine = null;
     self.currentDomain = null;
     self.currentState = Constants.INITIAL_STATE;
-    self.timerHandles = {};
+    self.timerHandles = {
+        logger: null,
+        statsd: null,
+        shutdown: null
+    };
 }
 
 UncaughtExceptionHandler.prototype.handleError =
@@ -124,6 +130,76 @@ function onLoggerFatal(err) {
     }
 
     self.uncaught.reporter.reportPostLogging(self);
+
+    self.handleStatsdIncrement();
+};
+
+UncaughtExceptionHandler.prototype.handleStatsdIncrement =
+function handleStatsdIncrement() {
+    var self = this;
+
+    self.currentState = Constants.PRE_STATSD_STATE;
+    self.timerHandles.statsd = self.uncaught.timers.setTimeout(
+        onstatsdtimeout, self.uncaught.statsdTimeout
+    );
+
+    self.uncaught.reporter.reportPreStatsd(self);
+
+    var tuple = tryCatch(function invokeStatsdIncrement() {
+        self.invokeStatsdIncrement();
+    });
+
+    self.statsdError = tuple[0];
+    self.uncaught.reporter.reportStatsd(self);
+
+    if (self.statsdError) {
+        self.transition(errors.StatsdThrownException({
+            errorMessage: self.statsdError.message,
+            errorType: self.statsdError.type,
+            errorStack: self.statsdError.stack
+        }));
+    }
+
+    function onstatsdtimeout() {
+        self.timerHandles.statsd = null;
+
+        self.transition(errors.StatsdTimeoutError({
+            timer: self.uncaught.statsdTimeout
+        }));
+    }
+};
+
+UncaughtExceptionHandler.prototype.invokeStatsdIncrement =
+function invokeStatsdIncrement() {
+    var self = this;
+
+    var statsd = self.uncaught.statsd;
+    var statsdKey = self.uncaught.statsdKey;
+
+    self.currentState = Constants.STATSD_STATE;
+    statsd.immediateIncrement(statsdKey, 1, statsdCallback);
+
+    function statsdCallback(err) {
+        self.transition(err);
+    }
+};
+
+UncaughtExceptionHandler.prototype.onStatsdIncrement =
+function onStatsdIncrement(err) {
+    var self = this;
+
+    self.currentState = Constants.POST_STATSD_STATE;
+    if (self.timerHandles.statsd) {
+        self.uncaught.timers.clearTimeout(self.timerHandles.statsd);
+    }
+
+    if (err) {
+        self.statsdAsyncError = err;
+        self.backupLog.log('statsd.uncaught.exception', self.uncaughtError);
+        self.backupLog.log('statsd.failure', err);
+    }
+
+    self.uncaught.reporter.reportPostStatsd(self);
 
     self.handleGracefulShutdown();
 };
@@ -251,6 +327,19 @@ function onDomainError(domainError) {
         /* istanbul ignore next: hard to hit */
         case Constants.POST_LOGGING_ERROR_STATE:
         /* istanbul ignore next: hard to hit */
+        case Constants.PRE_STATSD_STATE:
+        case Constants.STATSD_STATE:
+            self.transition(errors.StatsdAsyncError({
+                errorMessage: domainError.message,
+                errorType: domainError.type,
+                errorStack: domainError.stack,
+                currentState: currentState
+            }));
+            break;
+
+        /* istanbul ignore next: hard to hit */
+        case Constants.POST_STATSD_STATE:
+        /* istanbul ignore next: hard to hit */
         case Constants.PRE_GRACEFUL_SHUTDOWN_STATE:
         case Constants.GRACEFUL_SHUTDOWN_STATE:
             self.transition(errors.ShutdownAsyncError({
@@ -298,6 +387,13 @@ function transition(error) {
 
         /* istanbul ignore next: hard to hit */
         case Constants.POST_LOGGING_ERROR_STATE:
+        /* istanbul ignore next: hard to hit */
+        case Constants.PRE_STATSD_STATE:
+        case Constants.STATSD_STATE:
+            self.onStatsdIncrement(error);
+            break;
+
+        case Constants.POST_STATSD_STATE:
         /* istanbul ignore next: hard to hit */
         case Constants.PRE_GRACEFUL_SHUTDOWN_STATE:
         case Constants.GRACEFUL_SHUTDOWN_STATE:
