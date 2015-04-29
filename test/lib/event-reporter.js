@@ -15,8 +15,7 @@ var EVENTS = [
     'reportPostGracefulShutdown',
     'reportPreStatsd',
     'reportStatsd',
-    'reportPostStatsd',
-    'markTransition'
+    'reportPostStatsd'
 ];
 
 module.exports = EventReporter;
@@ -40,6 +39,9 @@ function createStateMachine(a) {
 
 EventReporter.prototype.getAllState = function getAllState() {
     return {};
+};
+
+EventReporter.prototype.markTransition = function markTransition() {
 };
 
 EVENTS.forEach(function addMethod(ev) {
