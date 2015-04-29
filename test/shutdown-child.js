@@ -1,4 +1,4 @@
-
+'use strict';
 /* SHUTDOWN child.
 
     This process gets spawned by the shutdown.js test. It's used
@@ -76,6 +76,14 @@ if (opts.lateTimeoutLogger) {
 if (!opts.logger) {
     opts.logger = {
         fatal: function fatal(message, options, cb) {
+            cb();
+        }
+    };
+}
+
+if (!opts.statsd) {
+    opts.statsd = {
+        immediateIncrement: function inc(key, n, cb) {
             cb();
         }
     };

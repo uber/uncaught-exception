@@ -9,6 +9,13 @@ var LoggerRequired = TypedError({
         'Please call `uncaught({ logger: logger })`.\n'
 });
 
+var StatsdRequired = TypedError({
+    type: 'uncaught-exception.statsd.required',
+    message: 'uncaught-exception: the options.statsd ' +
+        'parameter is required.\n' +
+        'Please call `uncaught({ statsd: statsd })`.\n'
+});
+
 var InvalidBackupFile = TypedError({
     type: 'uncaught-exception.invalid.backupFile',
     message: 'uncaught-exception: the options.backupFile ' +
@@ -24,6 +31,14 @@ var LoggerMethodRequired = TypedError({
         'have either a fatal() method.\n' +
         'Please call `uncaught({ logger: logger }) with a ' +
         'logger that has a fatal method.\n'
+});
+
+var StatsdMethodRequired = TypedError({
+    type: 'uncaught-exception.statsd.methodsRequired',
+    message: 'uncaught-exception: the options.statsd should ' +
+        'have an immediateIncrement() method.\n' +
+        'Please call `uncaught({ statsd: statsd }) with a ' +
+        'statsd that has a immediateIncrement method.\n'
 });
 
 var LoggerTimeoutError = TypedError({
@@ -84,8 +99,10 @@ var ShutdownAsyncError = TypedError({
 
 module.exports = {
     LoggerRequired: LoggerRequired,
+    StatsdRequired: StatsdRequired,
     InvalidBackupFile: InvalidBackupFile,
     LoggerMethodRequired: LoggerMethodRequired,
+    StatsdMethodRequired: StatsdMethodRequired,
     LoggerTimeoutError: LoggerTimeoutError,
     ShutdownTimeoutError: ShutdownTimeoutError,
     LoggerThrownException: LoggerThrownException,

@@ -14,6 +14,14 @@ function getListener() {
 }
 
 function uncaught(opts) {
+    if (!opts.statsd) {
+        opts.statsd = {
+            immediateIncrement: function immediateIncrement(key, n, cb) {
+                cb(null);
+            }
+        };
+    }
+
     if (!opts.gracefulShutdown) {
         opts.gracefulShutdown = function gracefulShutdown() {
             // we don't want to abort in a test
@@ -56,6 +64,12 @@ test('uncaughtException with listener disabled does nothing',
             logger: {
                 fatal: function f() {
                     assert.ok(false, 'fatal() should not be called');
+                }
+            },
+            statsd: {
+                immediateIncrement: function f() {
+                    assert.ok(false,
+                        'immediateIncrement() should not be called');
                 }
             }
         });
@@ -557,24 +571,67 @@ test('throws exception without options', function t(assert) {
 
     var tuple3 = tryCatch(function throwIt() {
         uncaughtException({
-            logger: { error: function e() {} }
+            logger: {}
         });
     });
 
     assert.ok(tuple3[0]);
     assert.equal(tuple3[0].type,
-        'uncaught-exception.logger.methodsRequired');
+        'uncaught-exception.statsd.required');
 
     var tuple4 = tryCatch(function throwIt() {
         uncaughtException({
-            logger: { fatal: function e() {} },
-            backupFile: true
+            statsd: {},
+            logger: {
+                error: function e() {}
+            }
         });
     });
 
     assert.ok(tuple4[0]);
     assert.equal(tuple4[0].type,
+        'uncaught-exception.logger.methodsRequired');
+
+    var tuple5 = tryCatch(function throwIt() {
+        uncaughtException({
+            statsd: {
+                increment: function it() {}
+            },
+            logger: {
+                fatal: function e() {}
+            }
+        });
+    });
+
+    assert.ok(tuple5[0]);
+    assert.equal(tuple5[0].type,
+        'uncaught-exception.statsd.methodsRequired');
+
+    var tuple6 = tryCatch(function throwIt() {
+        uncaughtException({
+            statsd: {},
+            logger: {},
+            backupFile: true
+        });
+    });
+
+    assert.ok(tuple6[0]);
+    assert.equal(tuple6[0].type,
         'uncaught-exception.invalid.backupFile');
+
+    var tuple7 = tryCatch(function throwIt() {
+        return uncaughtException({
+            statsd: {
+                immediateIncrement: function it() {}
+            },
+            logger: {
+                fatal: function e() {}
+            }
+        });
+    });
+
+    assert.ok(!tuple7[0]);
+    assert.equal(typeof tuple7[1], 'function');
 
     assert.end();
 });
