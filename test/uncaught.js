@@ -635,3 +635,33 @@ test('throws exception without options', function t(assert) {
 
     assert.end();
 });
+
+test('uncaught emits stats', function t(assert) {
+    var remove;
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc(key, n) {
+            assert.equal(key, 'service-crash');
+            assert.equal(n, 1);
+
+            remove();
+            assert.end();
+        }
+    };
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('error test');
+    });
+});
+
+test('uncaught emits with custom statsKey');
+test('uncaught waits a custom amount of time');
+test('uncaught times out bad statsd');
