@@ -13,6 +13,9 @@ var EVENTS = [
     'reportPreGracefulShutdown',
     'reportShutdown',
     'reportPostGracefulShutdown',
+    'reportPreStatsd',
+    'reportStatsd',
+    'reportPostStatsd',
     'markTransition'
 ];
 

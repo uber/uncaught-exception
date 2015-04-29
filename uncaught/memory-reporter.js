@@ -27,6 +27,12 @@ var structures = {
         UncaughtExceptionGracefulShutdownState,
     UncaughtExceptionPostGracefulShutdownState:
         UncaughtExceptionPostGracefulShutdownState,
+    UncaughtExceptionPreStatsdState:
+        UncaughtExceptionPreStatsdState,
+    UncaughtExceptionStatsdState:
+        UncaughtExceptionStatsdState,
+    UncaughtExceptionPostStatsdState:
+        UncaughtExceptionPostStatsdState,
     UncaughtExceptionStruct:
         UncaughtExceptionStruct
 };
@@ -115,6 +121,26 @@ function UncaughtExceptionPostGracefulShutdownState(opts) {
     this.backupFileShutdownErrorLine = opts.backupFileShutdownErrorLine;
 }
 
+function UncaughtExceptionPreStatsdState(opts) {
+    this.stateName = Constants.PRE_STATSD_STATE;
+    this.currentState = opts.currentState;
+    this.statsdTimer = opts.statsdTimer;
+}
+
+function UncaughtExceptionStatsdState(opts) {
+    this.stateName = Constants.STATSD_STATE;
+    this.currentState = opts.currentState;
+    this.statsdError = opts.statsdError;
+}
+
+function UncaughtExceptionPostStatsdState(opts) {
+    this.stateName = Constants.POST_STATSD_STATE;
+    this.currentState = opts.currentState;
+    this.statsdError = opts.statsdError;
+    this.backupFileUncaughtErrorLine = opts.backupFileUncaughtErrorLine;
+    this.backupFileStatsdErrorLine = opts.backupFileStatsdErrorLine;
+}
+
 function UncaughtMemoryReporter() {
     var self = this;
 
@@ -194,6 +220,41 @@ function reportPostLogging(handler) {
             loggerAsyncError: handler.loggerAsyncError,
             backupFileUncaughtErrorLine: lines['logger.uncaught.exception'],
             backupFileLoggerErrorLine: lines['logger.failure']
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportPreStatsd =
+function reportPostLogging(handler) {
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionPreStatsdState({
+            currentState: handler.currentState,
+            currentDomain: handler.currentDomain,
+            statsdTimer: handler.timerHandles.statsd
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportStatsd =
+function reportStatsd(handler) {
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionStatsdState({
+            currentState: handler.currentState,
+            statsdError: handler.statsdError
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportPostStatsd =
+function reportPostStatsd(handler) {
+    var lines = handler.backupLog.lines;
+
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionPostStatsdState({
+            currentState: handler.currentState,
+            statsdError: handler.statsdAsyncError,
+            backupFileUncaughtErrorLine: lines['statsd.uncaught.exception'],
+            backupFileStatsdErrorLine: lines['statsd.failure']
         })
     );
 };
