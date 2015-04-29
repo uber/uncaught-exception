@@ -28,12 +28,10 @@ var structures = {
     UncaughtExceptionPostGracefulShutdownState:
         UncaughtExceptionPostGracefulShutdownState,
     UncaughtExceptionStruct:
-        UncaughtExceptionStruct,
-    UncaughtMemoryReporter:
-        UncaughtMemoryReporter
+        UncaughtExceptionStruct
 };
 
-module.exports = structures;
+module.exports = UncaughtMemoryReporter;
 
 function UncaughtExceptionStruct(stateMachine, states) {
     this.stateMachine = stateMachine;
@@ -62,9 +60,12 @@ function markTransition(currentState) {
 
 function UncaughtExceptionConfigValue(opts) {
     this.prefix = opts.prefix;
+    this.statsdKey = opts.statsdKey;
     this.backupFile = opts.backupFile;
     this.loggerTimeout = opts.loggerTimeout;
+    this.statsdTimeout = opts.statsdTimeout;
     this.shutdownTimeout = opts.shutdownTimeout;
+    this.statsdWaitPeriod = opts.statsdWaitPeriod;
     this.hasGracefulShutdown = opts.hasGracefulShutdown;
     this.hasPreAbort = opts.hasPreAbort;
     this.hasFakeFS = opts.hasFakeFS;
@@ -126,9 +127,12 @@ function reportConfig(uncaught) {
 
     self.configValue = new structures.UncaughtExceptionConfigValue({
         prefix: uncaught.prefix,
+        statsdKey: uncaught.statsdKey,
         backupFile: uncaught.backupFile,
         loggerTimeout: uncaught.loggerTimeout,
+        statsdTimeout: uncaught.statsdTimeout,
         shutdownTimeout: uncaught.shutdownTimeout,
+        statsdWaitPeriod: uncaught.statsdWaitPeriod,
         hasGracefulShutdown: !!uncaught.options.gracefulShutdown,
         hasPreAbort: !!uncaught.options.preAbort,
         hasFakeFS: !!uncaught.options.fs,

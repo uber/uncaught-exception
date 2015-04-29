@@ -6,7 +6,7 @@ var globalSetTimeout = require('timers').setTimeout;
 var globalClearTimeout = require('timers').clearTimeout;
 
 var errors = require('./uncaught/errors.js');
-var structures = require('./uncaught/structures.js');
+var MemoryReporter = require('./uncaught/memory-reporter.js');
 var Constants = require('./uncaught/constants.js');
 var UncaughtExceptionHandler = require('./uncaught/uncaught-handler.js');
 
@@ -42,8 +42,7 @@ function UncaughtException(options) {
     self.preAbort = typeof options.preAbort === 'function' ?
         options.preAbort : noop;
 
-    self.reporter = options.reporter ||
-        new structures.UncaughtMemoryReporter();
+    self.reporter = options.reporter || new MemoryReporter();
     self.handlers = [];
 }
 

@@ -1,3 +1,5 @@
+'use strict';
+
 var TypedError = require('error/typed');
 
 var LoggerRequired = TypedError({

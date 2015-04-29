@@ -69,7 +69,6 @@ uncaught-exception/uncaught := (options: {
     gracefulShutdown?: (Callback) => void,
     preAbort?: () => void
 }) => onError: (Error) => void
-
 ```
 
 `uncaughtHandler` takes an options object and returns an error

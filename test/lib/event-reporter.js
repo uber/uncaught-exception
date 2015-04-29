@@ -3,8 +3,7 @@
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
 
-var UncaughtMemoryReporter =
-    require('../../uncaught/structures.js').UncaughtMemoryReporter;
+var UncaughtMemoryReporter = require('../../uncaught/memory-reporter.js');
 
 var EVENTS = [
     'reportConfig',
