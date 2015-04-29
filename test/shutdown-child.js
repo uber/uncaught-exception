@@ -191,6 +191,9 @@ if (opts.exitOnGracefulShutdown) {
 if (opts.abortOnUncaught === undefined) {
     opts.abortOnUncaught = true;
 }
+if (opts.statsdWaitPeriod === undefined) {
+    opts.statsdWaitPeriod = 0;
+}
 
 var onError = uncaughtException(opts);
 process.on('uncaughtException', onError);
