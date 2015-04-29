@@ -201,7 +201,21 @@ function onStatsdIncrement(err) {
 
     self.uncaught.reporter.reportPostStatsd(self);
 
-    self.handleGracefulShutdown();
+    self.handleStatsdWait();
+};
+
+UncaughtExceptionHandler.prototype.handleStatsdWait =
+function handleStatsdWait() {
+    var self = this;
+
+    self.uncaught.timers.setTimeout(
+        onWaitComplete,
+        self.uncaught.statsdWaitPeriod
+    );
+
+    function onWaitComplete() {
+        self.handleGracefulShutdown();
+    }
 };
 
 UncaughtExceptionHandler.prototype.handleGracefulShutdown =
@@ -393,6 +407,7 @@ function transition(error) {
             self.onStatsdIncrement(error);
             break;
 
+        /* istanbul ignore next: hard to hit */
         case Constants.POST_STATSD_STATE:
         /* istanbul ignore next: hard to hit */
         case Constants.PRE_GRACEFUL_SHUTDOWN_STATE:
