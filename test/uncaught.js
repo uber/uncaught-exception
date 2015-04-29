@@ -662,6 +662,94 @@ test('uncaught emits stats', function t(assert) {
     });
 });
 
-test('uncaught emits with custom statsKey');
+test('uncaught emits with custom statsKey', function t(assert) {
+    var remove;
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc(key, n) {
+            assert.equal(key, 'my-service-crash');
+            assert.equal(n, 1);
+
+            remove();
+            assert.end();
+        }
+    };
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd,
+        statsdKey: 'my-service-crash'
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('error test');
+    });
+});
+
 test('uncaught waits a custom amount of time');
-test('uncaught times out bad statsd');
+test.only('uncaught times out bad statsd', function t(assert) {
+    var remove;
+    var timers = Timer(0);
+    var fs = FakeFs();
+    fs.dir('/foo');
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc(key, n) {
+            timers.advance(30 * 1000);
+        }
+    };
+    var reporter = EventReporter();
+
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd,
+        fs: fs,
+        backupFile: '/foo/bar',
+        setTimeout: timers.setTimeout,
+        clearTimeout: timers.clearTimeout,
+        reporter: reporter,
+        statsdKey: 'my-service-crash'
+    });
+
+    reporter.once('reportPostStatsd', function onEvent() {
+        assert.ok(true);
+
+        assert.ok(fs.existsSync('/foo/bar'));
+
+        var buf = fs.readFileSync('/foo/bar');
+        var lines = String(buf).trim().split('\n');
+
+        assert.equal(lines.length, 3);
+
+        var line1 = JSON.parse(lines[0]);
+        var line2 = JSON.parse(lines[1]);
+        var line3 = JSON.parse(lines[2]);
+
+        assert.equal(line1.message, 'statsd timeout error');
+        assert.equal(line1._uncaughtType,
+            'exception.occurred');
+
+        assert.equal(line2.message, 'statsd timeout error');
+        assert.equal(line2._uncaughtType,
+            'statsd.uncaught.exception');
+
+        assert.equal(line3.type,
+            'uncaught-exception.statsd.timeout');
+        assert.equal(line3._uncaughtType,
+            'statsd.failure');
+
+        remove();
+        assert.end();
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('statsd timeout error');
+    });
+});
