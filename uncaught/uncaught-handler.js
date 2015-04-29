@@ -118,7 +118,7 @@ function onLoggerFatal(err) {
     var self = this;
 
     self.currentState = Constants.POST_LOGGING_ERROR_STATE;
-    if (self.timerHandles.logger) {
+    if (self.timerHandles.logger !== null) {
         self.uncaught.timers.clearTimeout(self.timerHandles.logger);
     }
 
@@ -189,7 +189,7 @@ function onStatsdIncrement(err) {
     var self = this;
 
     self.currentState = Constants.POST_STATSD_STATE;
-    if (self.timerHandles.statsd) {
+    if (self.timerHandles.statsd !== null) {
         self.uncaught.timers.clearTimeout(self.timerHandles.statsd);
     }
 
@@ -262,7 +262,7 @@ function onGracefulShutdown(err) {
     var self = this;
 
     self.currentState = Constants.POST_GRACEFUL_SHUTDOWN_STATE;
-    if (self.timerHandles.shutdown) {
+    if (self.timerHandles.shutdown !== null) {
         self.uncaught.timers.clearTimeout(self.timerHandles.shutdown);
     }
 
