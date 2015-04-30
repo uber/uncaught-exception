@@ -2,8 +2,6 @@
 
 var test = require('tape');
 var path = require('path');
-var process = require('process');
-var exec = require('child_process').exec;
 var fs = require('fs');
 
 /* SHUTDOWN tests.
@@ -14,37 +12,14 @@ var fs = require('fs');
         crash.
 */
 
-var shutdownChild = path.join(__dirname, 'shutdown-child.js');
-var count = 0;
+var TestChild = require('./lib/test-child.js');
+var spawnChild = require('./lib/spawn-child.js');
+
 // child process will only exit 128 + 6 if it dumps core
 // to enable core dumps run `ulimit -c unlimited`
+var BACKUP_FILE = path.join(__dirname, 'backupFile.log');
 var SIGABRT_CODE = 134;
 var SHUTDOWN_TIMEOUT = 50;
-
-function spawnChild(opts, callback) {
-    /*jshint camelcase: false */
-    var isIstanbul = process.env.running_under_istanbul;
-
-    var cmd;
-    // istanbul can't actually cover processes that crash.
-    // so there is little point as it doesn't add much coverage
-    // in the future it will https://github.com/gotwarlost/istanbul/issues/127
-    if (isIstanbul) {
-        cmd = 'node_modules/.bin/istanbul cover ' + shutdownChild +
-            ' --report cobertura' +
-            ' --print none' +
-            ' --dir coverage/shutdown-child' + count + ' -- \'' +
-            JSON.stringify(opts) + '\'';
-    } else {
-        cmd = 'node ' + shutdownChild + ' \'' + JSON.stringify(opts) + '\'';
-    }
-
-    count++;
-    exec(cmd, {
-        timeout: 5000,
-        cwd: path.join(__dirname, '..')
-    }, callback);
-}
 
 test('a child process is aborted', function t(assert) {
     spawnChild({
@@ -82,7 +57,7 @@ test('throwing in preAbort', function t(assert) {
 });
 
 test('writes to backupFile for failing logger', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         errorLogger: true,
@@ -197,7 +172,7 @@ test('writes to stderr with backupFile stderr', function t(assert) {
 });
 
 test('async failing logger', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         asyncErrorLogger: true,
@@ -238,7 +213,7 @@ test('async failing logger', function t(assert) {
 });
 
 test('writes to backupFile for failing shutdown', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         message: 'crash with bad shutdown',
@@ -284,7 +259,7 @@ test('writes to backupFile for failing shutdown', function t(assert) {
 });
 
 test('handles a naughty shutdown', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         message: 'crash with naughty shutdown',
@@ -324,7 +299,7 @@ test('handles a naughty shutdown', function t(assert) {
 });
 
 test('async failing shutdown', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         message: 'async failing shutdown',
@@ -370,7 +345,7 @@ test('async failing shutdown', function t(assert) {
 });
 
 test('handles a timeout logger', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         timeoutLogger: true,
@@ -412,7 +387,7 @@ test('handles a timeout logger', function t(assert) {
 });
 
 test('handles a thrown logger', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         thrownLogger: true,
@@ -453,7 +428,7 @@ test('handles a thrown logger', function t(assert) {
 });
 
 test('handles a timeout shutdown', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         timeoutShutdown: true,
@@ -496,7 +471,7 @@ test('handles a timeout shutdown', function t(assert) {
 });
 
 test('handles a thrown shutdown', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         thrownShutdown: true,
@@ -538,7 +513,7 @@ test('handles a thrown shutdown', function t(assert) {
 });
 
 test('handles a timeout + late succeed', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         lateTimeoutLogger: true,
@@ -580,7 +555,7 @@ test('handles a timeout + late succeed', function t(assert) {
 });
 
 test('handles a shutdown + late succeed', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         lateTimeoutShutdown: true,
@@ -623,7 +598,7 @@ test('handles a shutdown + late succeed', function t(assert) {
 });
 
 test('continue on exception', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         message: 'continue on exception',
@@ -656,7 +631,7 @@ test('continue on exception', function t(assert) {
 });
 
 test('continue on exception - do not call graceful', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         message: 'continue on exception',
@@ -690,7 +665,7 @@ test('continue on exception - do not call graceful', function t(assert) {
 });
 
 test('continue on exception - do not call preAbort', function t(assert) {
-    var loc = path.join(__dirname, 'backupFile.log');
+    var loc = BACKUP_FILE;
 
     spawnChild({
         message: 'continue on exception',
@@ -742,4 +717,215 @@ test('handles writing to bad file', function t(assert) {
 
         assert.end();
     });
+});
+
+TestChild.test('crashing with a prefix', {
+    message: 'crash with prefix',
+    abortOnUncaught: true,
+    prefix: 'some prefix: ',
+    consoleLogger: true,
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.ok(
+        child.stdout.indexOf('crash with prefix') === -1
+    );
+    assert.ok(
+        child.stderr.indexOf('crash with prefix') >= 0
+    );
+    assert.ok(
+        child.stderr.indexOf('some prefix: ') >= 0
+    );
+
+    var lines = child.lines;
+
+    assert.equal(lines.length, 1);
+    var line1 = lines[0];
+
+    assert.equal(line1.message, 'crash with prefix');
+    assert.equal(line1._uncaughtType, 'exception.occurred');
+
+    assert.end();
+});
+
+TestChild.test('writes stats to UDP server', {
+    message: 'crash with UDP stat',
+    abortOnUncaught: true,
+    udpServer: {},
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.equal(child.lines.length, 1);
+
+    var stat = String(child.messages[0]);
+    assert.equal(stat, 'service-crash:1|c');
+
+    assert.end();
+});
+
+TestChild.test('setting a custom statsdKey', {
+    message: 'crash with UDP stat',
+    abortOnUncaught: true,
+    statsdKey: 'my-service-crash',
+    udpServer: {},
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.equal(child.lines.length, 1);
+
+    var stat = String(child.messages[0]);
+    assert.equal(stat, 'my-service-crash:1|c');
+
+    assert.end();
+});
+
+TestChild.test('setting a custom wait period (high)', {
+    message: 'crash with UDP stat',
+    abortOnUncaught: true,
+    statsdWaitPeriod: 600,
+    statsdDelay: 500,
+    udpServer: {},
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.equal(child.lines.length, 1);
+
+    var stat = String(child.messages[0]);
+    assert.equal(stat, 'service-crash:1|c');
+
+    assert.end();
+});
+
+TestChild.test('setting a custom wait period (low)', {
+    message: 'crash with UDP stat',
+    abortOnUncaught: true,
+    statsdWaitPeriod: 500,
+    statsdDelay: 600,
+    udpServer: {},
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.equal(child.lines.length, 1);
+    assert.equal(child.messages.length, 0);
+
+    assert.end();
+});
+
+TestChild.test('thrown statsd exception', {
+    message: 'thrown exception statsd',
+    abortOnUncaught: true,
+    throwStatsdException: true,
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.equal(child.lines.length, 3);
+
+    assert.equal(child.lines[0].message, 'thrown exception statsd');
+    assert.equal(child.lines[0]._uncaughtType,
+        'exception.occurred');
+
+    assert.equal(child.lines[1].message, 'thrown exception statsd');
+    assert.equal(child.lines[1]._uncaughtType,
+        'statsd.uncaught.exception');
+
+    assert.equal(child.lines[2].type,
+        'uncaught-exception.statsd.threw');
+    assert.equal(child.lines[2]._uncaughtType,
+        'statsd.failure');
+
+    assert.end();
+});
+
+TestChild.test('statsd implementation times out', {
+    message: 'statsd times out',
+    abortOnUncaught: true,
+    timeoutStatsd: true,
+    statsdTimeout: 500,
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.equal(child.lines.length, 3);
+
+    assert.equal(child.lines[0].message, 'statsd times out');
+    assert.equal(child.lines[0]._uncaughtType,
+        'exception.occurred');
+
+    assert.equal(child.lines[1].message, 'statsd times out');
+    assert.equal(child.lines[1]._uncaughtType,
+        'statsd.uncaught.exception');
+
+    assert.equal(child.lines[2].type,
+        'uncaught-exception.statsd.timeout');
+    assert.equal(child.lines[2]._uncaughtType,
+        'statsd.failure');
+
+    assert.end();
+});
+
+TestChild.test('async statsd callback error', {
+    message: 'statsd times out',
+    abortOnUncaught: true,
+    statsdShouldError: true,
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.equal(child.lines.length, 3);
+
+    assert.equal(child.lines[0].message, 'statsd times out');
+    assert.equal(child.lines[0]._uncaughtType,
+        'exception.occurred');
+
+    assert.equal(child.lines[1].message, 'statsd times out');
+    assert.equal(child.lines[1]._uncaughtType,
+        'statsd.uncaught.exception');
+
+    assert.equal(child.lines[2].message,
+        'statsd write fail');
+    assert.equal(child.lines[2]._uncaughtType,
+        'statsd.failure');
+
+    assert.end();
+});
+
+TestChild.test('async thrown statsd exception', {
+    message: 'statsd async exception',
+    abortOnUncaught: true,
+    statsdAsyncThrow: true,
+    backupFile: BACKUP_FILE
+}, function t(child, assert) {
+    assert.ok(child.err);
+    assert.equal(child.err.code, SIGABRT_CODE);
+
+    assert.equal(child.lines.length, 3);
+
+    assert.equal(child.lines[0].message, 'statsd async exception');
+    assert.equal(child.lines[0]._uncaughtType,
+        'exception.occurred');
+
+    assert.equal(child.lines[1].message, 'statsd async exception');
+    assert.equal(child.lines[1]._uncaughtType,
+        'statsd.uncaught.exception');
+
+    assert.equal(child.lines[2].type,
+        'uncaught-exception.statsd.async-error');
+    assert.equal(child.lines[2]._uncaughtType,
+        'statsd.failure');
+
+    assert.end();
 });
