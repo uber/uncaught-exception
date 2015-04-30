@@ -1,4 +1,4 @@
-
+'use strict';
 /* SHUTDOWN child.
 
     This process gets spawned by the shutdown.js test. It's used
@@ -9,6 +9,7 @@
 var console = require('console');
 var process = require('process');
 var setTimeout = require('timers').setTimeout;
+var StatsdClient = require('uber-statsd-client');
 
 var uncaughtException = require('../uncaught.js');
 var EventReporter = require('./lib/event-reporter.js');
@@ -76,6 +77,14 @@ if (opts.lateTimeoutLogger) {
 if (!opts.logger) {
     opts.logger = {
         fatal: function fatal(message, options, cb) {
+            cb();
+        }
+    };
+}
+
+if (!opts.statsd) {
+    opts.statsd = {
+        immediateIncrement: function inc(key, n, cb) {
             cb();
         }
     };
@@ -167,10 +176,10 @@ opts.preAbort = function preAbort() {
 
 if (opts.exitCode && opts.abortOnUncaught === false) {
     opts.reporter = EventReporter();
-    opts.reporter.once('reportPostLogging', function a() {
+    opts.reporter.once('reportPostStatsd', function a() {
         setTimeout(function onExit() {
             process.exit(opts.exitCode);
-        }, 0);
+        }, 10);
     });
 }
 
@@ -182,6 +191,57 @@ if (opts.exitOnGracefulShutdown) {
 
 if (opts.abortOnUncaught === undefined) {
     opts.abortOnUncaught = true;
+}
+if (opts.statsdWaitPeriod === undefined) {
+    opts.statsdWaitPeriod = 0;
+}
+
+if (opts.udpServer) {
+    opts.statsd = new StatsdClient({
+        host: '127.0.0.1',
+        port: opts.udpServer.port
+    });
+}
+if (opts.statsdDelay) {
+    var func = opts.statsd.immediateIncrement;
+    opts.statsd.immediateIncrement = function p(k, n, cb) {
+        setTimeout(function onTimer() {
+            func.call(opts.statsd, k, n);
+        }, opts.statsdDelay);
+
+        cb();
+    };
+}
+
+if (opts.throwStatsdException) {
+    opts.statsd = {
+        immediateIncrement: function inc() {
+            throw new Error('sync statsd exception');
+        }
+    };
+}
+if (opts.timeoutStatsd) {
+    opts.statsd = {
+        immediateIncrement: function inc() {
+            // do not call cb()
+        }
+    };
+}
+if (opts.statsdShouldError) {
+    opts.statsd = {
+        immediateIncrement: function inc(k, n, cb) {
+            cb(new Error('statsd write fail'));
+        }
+    };
+}
+if (opts.statsdAsyncThrow) {
+    opts.statsd = {
+        immediateIncrement: function inc() {
+            process.nextTick(function oh() {
+                throw new Error('bye lol');
+            });
+        }
+    };
 }
 
 var onError = uncaughtException(opts);

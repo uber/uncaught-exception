@@ -27,13 +27,17 @@ var structures = {
         UncaughtExceptionGracefulShutdownState,
     UncaughtExceptionPostGracefulShutdownState:
         UncaughtExceptionPostGracefulShutdownState,
+    UncaughtExceptionPreStatsdState:
+        UncaughtExceptionPreStatsdState,
+    UncaughtExceptionStatsdState:
+        UncaughtExceptionStatsdState,
+    UncaughtExceptionPostStatsdState:
+        UncaughtExceptionPostStatsdState,
     UncaughtExceptionStruct:
-        UncaughtExceptionStruct,
-    UncaughtMemoryReporter:
-        UncaughtMemoryReporter
+        UncaughtExceptionStruct
 };
 
-module.exports = structures;
+module.exports = UncaughtMemoryReporter;
 
 function UncaughtExceptionStruct(stateMachine, states) {
     this.stateMachine = stateMachine;
@@ -62,9 +66,12 @@ function markTransition(currentState) {
 
 function UncaughtExceptionConfigValue(opts) {
     this.prefix = opts.prefix;
+    this.statsdKey = opts.statsdKey;
     this.backupFile = opts.backupFile;
     this.loggerTimeout = opts.loggerTimeout;
+    this.statsdTimeout = opts.statsdTimeout;
     this.shutdownTimeout = opts.shutdownTimeout;
+    this.statsdWaitPeriod = opts.statsdWaitPeriod;
     this.hasGracefulShutdown = opts.hasGracefulShutdown;
     this.hasPreAbort = opts.hasPreAbort;
     this.hasFakeFS = opts.hasFakeFS;
@@ -114,6 +121,26 @@ function UncaughtExceptionPostGracefulShutdownState(opts) {
     this.backupFileShutdownErrorLine = opts.backupFileShutdownErrorLine;
 }
 
+function UncaughtExceptionPreStatsdState(opts) {
+    this.stateName = Constants.PRE_STATSD_STATE;
+    this.currentState = opts.currentState;
+    this.statsdTimer = opts.statsdTimer;
+}
+
+function UncaughtExceptionStatsdState(opts) {
+    this.stateName = Constants.STATSD_STATE;
+    this.currentState = opts.currentState;
+    this.statsdError = opts.statsdError;
+}
+
+function UncaughtExceptionPostStatsdState(opts) {
+    this.stateName = Constants.POST_STATSD_STATE;
+    this.currentState = opts.currentState;
+    this.statsdError = opts.statsdError;
+    this.backupFileUncaughtErrorLine = opts.backupFileUncaughtErrorLine;
+    this.backupFileStatsdErrorLine = opts.backupFileStatsdErrorLine;
+}
+
 function UncaughtMemoryReporter() {
     var self = this;
 
@@ -126,9 +153,12 @@ function reportConfig(uncaught) {
 
     self.configValue = new structures.UncaughtExceptionConfigValue({
         prefix: uncaught.prefix,
+        statsdKey: uncaught.statsdKey,
         backupFile: uncaught.backupFile,
         loggerTimeout: uncaught.loggerTimeout,
+        statsdTimeout: uncaught.statsdTimeout,
         shutdownTimeout: uncaught.shutdownTimeout,
+        statsdWaitPeriod: uncaught.statsdWaitPeriod,
         hasGracefulShutdown: !!uncaught.options.gracefulShutdown,
         hasPreAbort: !!uncaught.options.preAbort,
         hasFakeFS: !!uncaught.options.fs,
@@ -190,6 +220,41 @@ function reportPostLogging(handler) {
             loggerAsyncError: handler.loggerAsyncError,
             backupFileUncaughtErrorLine: lines['logger.uncaught.exception'],
             backupFileLoggerErrorLine: lines['logger.failure']
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportPreStatsd =
+function reportPostLogging(handler) {
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionPreStatsdState({
+            currentState: handler.currentState,
+            currentDomain: handler.currentDomain,
+            statsdTimer: handler.timerHandles.statsd
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportStatsd =
+function reportStatsd(handler) {
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionStatsdState({
+            currentState: handler.currentState,
+            statsdError: handler.statsdError
+        })
+    );
+};
+
+UncaughtMemoryReporter.prototype.reportPostStatsd =
+function reportPostStatsd(handler) {
+    var lines = handler.backupLog.lines;
+
+    handler.stateMachine.addTransition(
+        new structures.UncaughtExceptionPostStatsdState({
+            currentState: handler.currentState,
+            statsdError: handler.statsdAsyncError,
+            backupFileUncaughtErrorLine: lines['statsd.uncaught.exception'],
+            backupFileStatsdErrorLine: lines['statsd.failure']
         })
     );
 };

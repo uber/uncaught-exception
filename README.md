@@ -11,13 +11,19 @@ Supports 0.10 only. Designed for robustness and garaunteed
 var uncaughtHandler = require('uncaught-exception');
 
 var myLogger = {
-    fatal: function (message, metaObj, callback) {
+    fatal: function fatal(message, metaObj, callback) {
         // must call the callback once logged
+    }
+}
+var myStatsd = {
+    immediateIncrement: function inc(key, count, callback) {
+        // call the callback once incremented.
     }
 }
 
 var onError = uncaughtHandler({
     logger: myLogger,
+    statsd: myStatsd,
     prefix: 'some string prefix ',
     abortOnUncaught: true, // opt into aborting on uncaught
     backupFile: '/path/to/uncaught-handler.log',
@@ -44,15 +50,21 @@ See [docs.mli for type definitions](docs.mli)
 
 ### `var onError = uncaughtHandler(options)`
 
-```
+```js
 uncaught-exception/uncaught := (options: {
     logger: {
         fatal: (String, Object, Callback) => void
     },
+    statsd: {
+        immediateIncrement: (String, Number, Callback) =>void
+    },
     prefix?: String,
-    backupFile?: String,
+    statsdKey?: String,
+    statsdWaitPeriod?: Number,
+    backupFile?: "stdout" | "stderr" | String,
     abortOnUncaught?: Boolean,
     loggerTimeout?: Number,
+    statsdTimeout?: Number,
     shutdownTimeout?: Number,
     gracefulShutdown?: (Callback) => void,
     preAbort?: () => void
@@ -78,11 +90,41 @@ The `uncaughtHandler` will exit your process once it's done
 The `logger` should invoke the `callback` once it's flushed it to
   all the logging backends you support, (i.e. disk, sentry, etc)
 
+#### `options.statsd`
+
+`options.statsd` is a statsd object used to increment counters.
+  It's expected to have a `immediateIncrement()` method that
+  takes a string, a number and a callback.
+
+The `statsd` should invoke the `callback` once it's flushed it
+  to the stats service.
+
 #### `options.prefix`
 
 `options.prefix` allows you to configure a prefix for this
   uncaught handler. You might want to put the `os.hostname()` in
   the prefix.
+
+#### `options.statsdKey`
+
+`options.statsdKey` allows you to configure what kind of statsd
+  key we increment when we have an uncaught exception.
+
+The key defaults to `"service-crash"`.
+
+#### `options.statsdWaitPeriod`
+
+`options.statsdWaitPeriod` is a configurable waiting period.
+The node implementation of UDP which the `statsd` client will
+probably uses invokes the callback too early.
+
+If you `abort()` synchronously there is no garantuee that we've
+actually send the statsd out of the process.
+
+To work around this we have an "arbitrary" waiting period after
+we get the `statsd` callback.
+
+`options.statsdWaitPeriod` defaults to `1500` milliseconds
 
 #### `options.backupFile`
 
@@ -123,6 +165,14 @@ The `uncaughtHandler` will assume that your logger might fail or
   hang so it times out the fatal logging call.
 
 The default timeout is 30 seconds, you can pass `loggerTimeout`
+  if you want to overwrite it.
+
+#### `options.statsdTimeout`
+
+The `uncaughtHandler` will assume that your statsd might fail or
+  hang so it times out the statsd increment call.
+
+The default timeout is 5 seconds, you can pass `statsdTimeout`
   if you want to overwrite it.
 
 #### `options.gracefulShutdown`

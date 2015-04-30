@@ -3,8 +3,7 @@
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
 
-var UncaughtMemoryReporter =
-    require('../../uncaught/structures.js').UncaughtMemoryReporter;
+var UncaughtMemoryReporter = require('../../uncaught/memory-reporter.js');
 
 var EVENTS = [
     'reportConfig',
@@ -14,7 +13,9 @@ var EVENTS = [
     'reportPreGracefulShutdown',
     'reportShutdown',
     'reportPostGracefulShutdown',
-    'markTransition'
+    'reportPreStatsd',
+    'reportStatsd',
+    'reportPostStatsd'
 ];
 
 module.exports = EventReporter;
@@ -38,6 +39,9 @@ function createStateMachine(a) {
 
 EventReporter.prototype.getAllState = function getAllState() {
     return {};
+};
+
+EventReporter.prototype.markTransition = function markTransition() {
 };
 
 EVENTS.forEach(function addMethod(ev) {

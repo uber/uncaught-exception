@@ -14,6 +14,14 @@ function getListener() {
 }
 
 function uncaught(opts) {
+    if (!opts.statsd) {
+        opts.statsd = {
+            immediateIncrement: function immediateIncrement(key, n, cb) {
+                cb(null);
+            }
+        };
+    }
+
     if (!opts.gracefulShutdown) {
         opts.gracefulShutdown = function gracefulShutdown() {
             // we don't want to abort in a test
@@ -29,6 +37,10 @@ function uncaught(opts) {
             // must return a number
             return 1;
         };
+    }
+
+    if (!opts.statsdWaitPeriod) {
+        opts.statsdWaitPeriod = 0;
     }
 
     var onError = uncaughtException(opts);
@@ -56,6 +68,12 @@ test('uncaughtException with listener disabled does nothing',
             logger: {
                 fatal: function f() {
                     assert.ok(false, 'fatal() should not be called');
+                }
+            },
+            statsd: {
+                immediateIncrement: function f() {
+                    assert.ok(false,
+                        'immediateIncrement() should not be called');
                 }
             }
         });
@@ -185,6 +203,7 @@ test('calls gracefulShutdown', function t(assert) {
     };
     var fs = FakeFs();
     var reporter = EventReporter();
+    var timer = Timer(0);
     fs.dir('/foo');
 
     var remove = uncaught({
@@ -206,9 +225,17 @@ test('calls gracefulShutdown', function t(assert) {
             remove();
             assert.end();
         },
+        setTimeout: timer.setTimeout,
+        clearTimeout: timer.clearTimeout,
         abortOnUncaught: true,
         fs: fs,
         backupFile: '/foo/bar'
+    });
+
+    reporter.once('reportPostStatsd', function onEvent() {
+        process.nextTick(function advance() {
+            timer.advance(10);
+        });
     });
 
     process.nextTick(function throwIt() {
@@ -465,38 +492,38 @@ test('handles async exceptions for logger', function t(assert) {
         logger: logger,
         fs: fs,
         reporter: reporter,
-        gracefulShutdown: function graceful() {
-            assert.ok(true);
-
-            assert.ok(fs.existsSync('/foo/bar'));
-
-            var buf = fs.readFileSync('/foo/bar');
-            var lines = String(buf).trim().split('\n');
-
-            assert.equal(lines.length, 3);
-
-            var line1 = JSON.parse(lines[0]);
-            var line2 = JSON.parse(lines[1]);
-            var line3 = JSON.parse(lines[2]);
-
-            assert.equal(line1.message, 'async exception error');
-            assert.equal(line1._uncaughtType,
-                'exception.occurred');
-
-            assert.equal(line2.message, 'async exception error');
-            assert.equal(line2._uncaughtType,
-                'logger.uncaught.exception');
-
-            assert.equal(line3.type,
-                'uncaught-exception.logger.async-error');
-            assert.equal(line3._uncaughtType,
-                'logger.failure');
-
-            remove();
-            assert.end();
-        },
-        abortOnUncaught: true,
         backupFile: '/foo/bar'
+    });
+
+    reporter.once('reportPostLogging', function () {
+        assert.ok(true);
+
+        assert.ok(fs.existsSync('/foo/bar'));
+
+        var buf = fs.readFileSync('/foo/bar');
+        var lines = String(buf).trim().split('\n');
+
+        assert.equal(lines.length, 3);
+
+        var line1 = JSON.parse(lines[0]);
+        var line2 = JSON.parse(lines[1]);
+        var line3 = JSON.parse(lines[2]);
+
+        assert.equal(line1.message, 'async exception error');
+        assert.equal(line1._uncaughtType,
+            'exception.occurred');
+
+        assert.equal(line2.message, 'async exception error');
+        assert.equal(line2._uncaughtType,
+            'logger.uncaught.exception');
+
+        assert.equal(line3.type,
+            'uncaught-exception.logger.async-error');
+        assert.equal(line3._uncaughtType,
+            'logger.failure');
+
+        remove();
+        assert.end();
     });
 
     process.nextTick(function throwIt() {
@@ -557,24 +584,364 @@ test('throws exception without options', function t(assert) {
 
     var tuple3 = tryCatch(function throwIt() {
         uncaughtException({
-            logger: { error: function e() {} }
+            logger: {}
         });
     });
 
     assert.ok(tuple3[0]);
     assert.equal(tuple3[0].type,
-        'uncaught-exception.logger.methodsRequired');
+        'uncaught-exception.statsd.required');
 
     var tuple4 = tryCatch(function throwIt() {
         uncaughtException({
-            logger: { fatal: function e() {} },
-            backupFile: true
+            statsd: {},
+            logger: {
+                error: function e() {}
+            }
         });
     });
 
     assert.ok(tuple4[0]);
     assert.equal(tuple4[0].type,
+        'uncaught-exception.logger.methodsRequired');
+
+    var tuple5 = tryCatch(function throwIt() {
+        uncaughtException({
+            statsd: {
+                increment: function it() {}
+            },
+            logger: {
+                fatal: function e() {}
+            }
+        });
+    });
+
+    assert.ok(tuple5[0]);
+    assert.equal(tuple5[0].type,
+        'uncaught-exception.statsd.methodsRequired');
+
+    var tuple6 = tryCatch(function throwIt() {
+        uncaughtException({
+            statsd: {},
+            logger: {},
+            backupFile: true
+        });
+    });
+
+    assert.ok(tuple6[0]);
+    assert.equal(tuple6[0].type,
         'uncaught-exception.invalid.backupFile');
 
+    var tuple7 = tryCatch(function throwIt() {
+        return uncaughtException({
+            statsd: {
+                immediateIncrement: function it() {}
+            },
+            logger: {
+                fatal: function e() {}
+            }
+        });
+    });
+
+    assert.ok(!tuple7[0]);
+    assert.equal(typeof tuple7[1], 'function');
+
     assert.end();
+});
+
+test('uncaught emits stats', function t(assert) {
+    var remove;
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc(key, n) {
+            assert.equal(key, 'service-crash');
+            assert.equal(n, 1);
+
+            remove();
+            assert.end();
+        }
+    };
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('error test');
+    });
+});
+
+test('uncaught emits with custom statsKey', function t(assert) {
+    var remove;
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc(key, n) {
+            assert.equal(key, 'my-service-crash');
+            assert.equal(n, 1);
+
+            remove();
+            assert.end();
+        }
+    };
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd,
+        statsdKey: 'my-service-crash'
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('error test');
+    });
+});
+
+test('uncaught handles exception in statsd (sync)', function t(assert) {
+    var remove;
+    var fs = FakeFs();
+    fs.dir('/foo');
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc() {
+            throw new Error('sync error');
+        }
+    };
+    var reporter = EventReporter();
+
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd,
+        fs: fs,
+        backupFile: '/foo/bar',
+        reporter: reporter
+    });
+
+    reporter.once('reportPostStatsd', function onEvent() {
+        assert.ok(true);
+
+        assert.ok(fs.existsSync('/foo/bar'));
+
+        var buf = fs.readFileSync('/foo/bar');
+        var lines = String(buf).trim().split('\n');
+
+        assert.equal(lines.length, 3);
+
+        var line1 = JSON.parse(lines[0]);
+        var line2 = JSON.parse(lines[1]);
+        var line3 = JSON.parse(lines[2]);
+
+        assert.equal(line1.message, 'statsd timeout error');
+        assert.equal(line1._uncaughtType,
+            'exception.occurred');
+
+        assert.equal(line2.message, 'statsd timeout error');
+        assert.equal(line2._uncaughtType,
+            'statsd.uncaught.exception');
+
+        assert.equal(line3.type,
+            'uncaught-exception.statsd.threw');
+        assert.equal(line3._uncaughtType,
+            'statsd.failure');
+
+        remove();
+        assert.end();
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('statsd timeout error');
+    });
+});
+
+test('uncaught handles exception in statsd (async)', function t(assert) {
+    var remove;
+    var fs = FakeFs();
+    fs.dir('/foo');
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc() {
+            process.nextTick(function throwIt() {
+                throw new Error('async error');
+            });
+        }
+    };
+    var reporter = EventReporter();
+
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd,
+        fs: fs,
+        backupFile: '/foo/bar',
+        reporter: reporter
+    });
+
+    reporter.once('reportPostStatsd', function onEvent() {
+        assert.ok(true);
+
+        assert.ok(fs.existsSync('/foo/bar'));
+
+        var buf = fs.readFileSync('/foo/bar');
+        var lines = String(buf).trim().split('\n');
+
+        assert.equal(lines.length, 3);
+
+        var line1 = JSON.parse(lines[0]);
+        var line2 = JSON.parse(lines[1]);
+        var line3 = JSON.parse(lines[2]);
+
+        assert.equal(line1.message, 'statsd timeout error');
+        assert.equal(line1._uncaughtType,
+            'exception.occurred');
+
+        assert.equal(line2.message, 'statsd timeout error');
+        assert.equal(line2._uncaughtType,
+            'statsd.uncaught.exception');
+
+        assert.equal(line3.type,
+            'uncaught-exception.statsd.async-error');
+        assert.equal(line3._uncaughtType,
+            'statsd.failure');
+
+        remove();
+        assert.end();
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('statsd timeout error');
+    });
+});
+
+test('uncaught waits a custom amount of time', function t(assert) {
+    var remove;
+    var fs = FakeFs();
+    fs.dir('/foo');
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc(key, n, cb) {
+            cb();
+        }
+    };
+    var timer = Timer(0);
+    var reporter = EventReporter();
+
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd,
+        fs: fs,
+        reporter: reporter,
+        statsdWaitPeriod: 500,
+        backupFile: '/foo/bar',
+        setTimeout: timer.setTimeout,
+        clearTimeout: timer.clearTimeout
+    });
+
+    reporter.once('reportPostStatsd', function onEvent(state) {
+        process.nextTick(function onEvent() {
+            timer.advance(500);
+            assert.ok(true);
+
+            assert.equal(state.currentState, 'post.graceful.shutdown');
+            assert.ok(fs.existsSync('/foo/bar'));
+
+            var buf = fs.readFileSync('/foo/bar');
+            var lines = String(buf).trim().split('\n');
+
+            assert.equal(lines.length, 1);
+
+            var line1 = JSON.parse(lines[0]);
+
+            assert.equal(line1.message, 'error test');
+            assert.equal(line1._uncaughtType,
+                'exception.occurred');
+
+            remove();
+            assert.end();
+        });
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('error test');
+    });
+});
+
+test('uncaught times out bad statsd', function t(assert) {
+    var remove;
+    var timers = Timer(0);
+    var fs = FakeFs();
+    fs.dir('/foo');
+    var logger = {
+        fatal: function fatal(msg, err, cb) {
+            cb();
+        }
+    };
+    var statsd = {
+        immediateIncrement: function inc() {
+            timers.advance(10 * 1000);
+        }
+    };
+    var reporter = EventReporter();
+
+    remove = uncaught({
+        logger: logger,
+        statsd: statsd,
+        fs: fs,
+        statsdTimeout: 10 * 1000,
+        backupFile: '/foo/bar',
+        setTimeout: timers.setTimeout,
+        clearTimeout: timers.clearTimeout,
+        reporter: reporter,
+        statsdKey: 'my-service-crash'
+    });
+
+    reporter.once('reportPostStatsd', function onEvent() {
+        assert.ok(true);
+
+        assert.ok(fs.existsSync('/foo/bar'));
+
+        var buf = fs.readFileSync('/foo/bar');
+        var lines = String(buf).trim().split('\n');
+
+        assert.equal(lines.length, 3);
+
+        var line1 = JSON.parse(lines[0]);
+        var line2 = JSON.parse(lines[1]);
+        var line3 = JSON.parse(lines[2]);
+
+        assert.equal(line1.message, 'statsd timeout error');
+        assert.equal(line1._uncaughtType,
+            'exception.occurred');
+
+        assert.equal(line2.message, 'statsd timeout error');
+        assert.equal(line2._uncaughtType,
+            'statsd.uncaught.exception');
+
+        assert.equal(line3.type,
+            'uncaught-exception.statsd.timeout');
+        assert.equal(line3._uncaughtType,
+            'statsd.failure');
+
+        remove();
+        assert.end();
+    });
+
+    process.nextTick(function throwIt() {
+        throw new Error('statsd timeout error');
+    });
 });

@@ -6,7 +6,7 @@ var globalSetTimeout = require('timers').setTimeout;
 var globalClearTimeout = require('timers').clearTimeout;
 
 var errors = require('./uncaught/errors.js');
-var structures = require('./uncaught/structures.js');
+var MemoryReporter = require('./uncaught/memory-reporter.js');
 var Constants = require('./uncaught/constants.js');
 var UncaughtExceptionHandler = require('./uncaught/uncaught-handler.js');
 
@@ -18,23 +18,34 @@ function UncaughtException(options) {
     self.options = options;
 
     self.logger = options.logger;
+    self.statsd = options.statsd;
     self.fs = options.fs || globalFs;
     self.timers = {
         setTimeout: options.setTimeout || globalSetTimeout,
         clearTimeout: options.clearTimeout || globalClearTimeout
     };
+
     self.prefix = options.prefix ? String(options.prefix) : '';
     self.backupFile = typeof options.backupFile === 'string' ?
         options.backupFile : null;
-    self.loggerTimeout =
-        typeof options.loggerTimeout === 'number' ?
-        options.loggerTimeout : Constants.LOGGER_TIMEOUT;
-    self.shutdownTimeout =
-        typeof options.shutdownTimeout === 'number' ?
-        options.shutdownTimeout : Constants.SHUTDOWN_TIMEOUT;
+    self.statsdKey = typeof options.statsdKey === 'string' ?
+        options.statsdKey : 'service-crash';
     self.abortOnUncaught =
         typeof options.abortOnUncaught === 'boolean' ?
         options.abortOnUncaught : false;
+
+    self.loggerTimeout =
+        typeof options.loggerTimeout === 'number' ?
+        options.loggerTimeout : Constants.LOGGER_TIMEOUT;
+    self.statsdTimeout =
+        typeof options.statsdTimeout === 'number' ?
+        options.statsdTimeout : Constants.STATSD_TIMEOUT;
+    self.shutdownTimeout =
+        typeof options.shutdownTimeout === 'number' ?
+        options.shutdownTimeout : Constants.SHUTDOWN_TIMEOUT;
+    self.statsdWaitPeriod =
+        typeof options.statsdWaitPeriod === 'number' ?
+        options.statsdWaitPeriod : Constants.STATSD_WAIT_PERIOD;
 
     self.gracefulShutdown =
         typeof options.gracefulShutdown === 'function' ?
@@ -42,8 +53,7 @@ function UncaughtException(options) {
     self.preAbort = typeof options.preAbort === 'function' ?
         options.preAbort : noop;
 
-    self.reporter = options.reporter ||
-        new structures.UncaughtMemoryReporter();
+    self.reporter = options.reporter || new MemoryReporter();
     self.handlers = [];
 }
 
@@ -77,6 +87,11 @@ function checkOptions(options) {
             logger: options && options.logger
         });
     }
+    if (!options || typeof options.statsd !== 'object') {
+        throw errors.StatsdRequired({
+            statsd: options && options.statsd
+        });
+    }
 
     if ('backupFile' in options &&
         typeof options.backupFile !== 'string'
@@ -91,7 +106,16 @@ function checkOptions(options) {
     if (!logger || typeof logger.fatal !== 'function') {
         throw errors.LoggerMethodRequired({
             logger: logger,
-            keys: Object.keys(logger)
+            keys: logger && Object.keys(logger)
+        });
+    }
+
+    var statsd = options.statsd;
+
+    if (!statsd || typeof statsd.immediateIncrement !== 'function') {
+        throw errors.StatsdMethodRequired({
+            statsd: statsd,
+            keys: statsd && Object.keys(statsd)
         });
     }
 }

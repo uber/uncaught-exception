@@ -1,3 +1,5 @@
+'use strict';
+
 var TypedError = require('error/typed');
 
 var LoggerRequired = TypedError({
@@ -5,6 +7,13 @@ var LoggerRequired = TypedError({
     message: 'uncaught-exception: the options.logger ' +
         'parameter is required.\n' +
         'Please call `uncaught({ logger: logger })`.\n'
+});
+
+var StatsdRequired = TypedError({
+    type: 'uncaught-exception.statsd.required',
+    message: 'uncaught-exception: the options.statsd ' +
+        'parameter is required.\n' +
+        'Please call `uncaught({ statsd: statsd })`.\n'
 });
 
 var InvalidBackupFile = TypedError({
@@ -24,10 +33,25 @@ var LoggerMethodRequired = TypedError({
         'logger that has a fatal method.\n'
 });
 
+var StatsdMethodRequired = TypedError({
+    type: 'uncaught-exception.statsd.methodsRequired',
+    message: 'uncaught-exception: the options.statsd should ' +
+        'have an immediateIncrement() method.\n' +
+        'Please call `uncaught({ statsd: statsd }) with a ' +
+        'statsd that has a immediateIncrement method.\n'
+});
+
 var LoggerTimeoutError = TypedError({
     type: 'uncaught-exception.logger.timeout',
     message: 'uncaught-exception: the logger.fatal() method ' +
         'timed out.\n' +
+        'Expected it to finish within {time} ms.\n'
+});
+
+var StatsdTimeoutError = TypedError({
+    type: 'uncaught-exception.statsd.timeout',
+    message: 'uncaught-exception: the statsd.immediateIncrement() ' +
+        'method timed out.\n' +
         'Expected it to finish within {time} ms.\n'
 });
 
@@ -42,6 +66,16 @@ var LoggerThrownException = TypedError({
     type: 'uncaught-exception.logger.threw',
     message: 'uncaught-exception: the logger.fatal() method ' +
         'threw an exception.\n' +
+        'Expected it to not throw at all.\n' +
+        'message: {errorMessage}.\n' +
+        'type: {errorType}.\n' +
+        'stack: {errorStack}.\n'
+});
+
+var StatsdThrownException = TypedError({
+    type: 'uncaught-exception.statsd.threw',
+    message: 'uncaught-exception: the statsd.immediateIncrement() ' +
+        'method threw an exception.\n' +
         'Expected it to not throw at all.\n' +
         'message: {errorMessage}.\n' +
         'type: {errorType}.\n' +
@@ -69,6 +103,17 @@ var LoggerAsyncError = TypedError({
         'currentState: {currentState}.\n'
 });
 
+var StatsdAsyncError = TypedError({
+    type: 'uncaught-exception.statsd.async-error',
+    message: 'uncaught-exception: An unexpected exception ' +
+        'happened whilst calling `statsd.immediateIncrement()`.\n' +
+        'Expected no exception to happen.\n' +
+        'message: {errorMessage}.\n' +
+        'type: {errorType}.\n' +
+        'stack: {errorStack}.\n' +
+        'currentState: {currentState}.\n'
+});
+
 var ShutdownAsyncError = TypedError({
     type: 'uncaught-exception.shutdown.async-error',
     message: 'uncaught-exception: An unexpected exception ' +
@@ -82,12 +127,17 @@ var ShutdownAsyncError = TypedError({
 
 module.exports = {
     LoggerRequired: LoggerRequired,
+    StatsdRequired: StatsdRequired,
     InvalidBackupFile: InvalidBackupFile,
     LoggerMethodRequired: LoggerMethodRequired,
+    StatsdMethodRequired: StatsdMethodRequired,
     LoggerTimeoutError: LoggerTimeoutError,
+    StatsdTimeoutError: StatsdTimeoutError,
     ShutdownTimeoutError: ShutdownTimeoutError,
     LoggerThrownException: LoggerThrownException,
+    StatsdThrownException: StatsdThrownException,
     ShutdownThrownException: ShutdownThrownException,
     LoggerAsyncError: LoggerAsyncError,
+    StatsdAsyncError: StatsdAsyncError,
     ShutdownAsyncError: ShutdownAsyncError
 };
