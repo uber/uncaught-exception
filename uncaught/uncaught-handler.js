@@ -39,6 +39,10 @@ UncaughtExceptionHandler.prototype.handleError =
 function handleError(error) {
     var self = this;
 
+    if (typeof error === 'string') {
+        error = new Error(error);
+    }
+
     self.currentState = Constants.ON_ERROR_STATE;
     self.uncaughtError = error;
     self.stateMachine = self.uncaught.reporter.createStateMachine(error);
