@@ -148,6 +148,30 @@ test('uncaughtException prefix', function t(assert) {
     });
 });
 
+test('handles throwing strings', function t(assert) {
+    var logger = {
+        fatal: function fatal(message, error) {
+            assert.equal(message,
+                'some-server: Uncaught Exception: ');
+            assert.ok(error);
+            assert.ok(error.stack);
+            assert.equal(error.message, 'error test');
+
+            remove();
+            assert.end();
+        }
+    };
+
+    var remove = uncaught({
+        logger: logger,
+        prefix: 'some-server: '
+    });
+
+    process.nextTick(function throwIt() {
+        throw 'error test';
+    });
+});
+
 test('writes to backupFile on error', function t(assert) {
     var logger = {
         fatal: function fatal(message, error, cb) {
