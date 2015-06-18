@@ -3,6 +3,8 @@
 var process = require('process');
 var domain = require('domain');
 
+var extend = require('xtend');
+
 var tryCatch = require('../lib/try-catch-it.js');
 var errors = require('./errors.js');
 var Constants = require('./constants.js');
@@ -101,16 +103,16 @@ function invokeLoggerFatal() {
     var self = this;
 
     var logger = self.uncaught.logger;
-    var prefix = self.uncaught.prefix;
     var error = self.uncaughtError;
     var type = error.type || '';
+    var meta = extend({
+        type: type,
+        error: error
+    }, self.uncaught.meta);
 
     self.currentState = Constants.LOGGING_ERROR_STATE;
-    logger.fatal(
-        prefix + 'Uncaught Exception: ' + type,
-        error,
-        loggerCallback
-    );
+
+    logger.fatal('Uncaught Exception', meta, loggerCallback);
 
     function loggerCallback(err) {
         self.transition(err);

@@ -25,7 +25,7 @@ function UncaughtException(options) {
         clearTimeout: options.clearTimeout || globalClearTimeout
     };
 
-    self.prefix = options.prefix ? String(options.prefix) : '';
+    self.meta = options.meta;
     self.backupFile = typeof options.backupFile === 'string' ?
         options.backupFile : null;
     self.statsdKey = typeof options.statsdKey === 'string' ?

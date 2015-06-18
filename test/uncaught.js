@@ -104,11 +104,11 @@ test('uncaughtException adds a listener', function t(assert) {
 
 test('uncaughtException logs to logger', function t(assert) {
     var logger = {
-        fatal: function fatal(message, error) {
-            assert.equal(message, 'Uncaught Exception: ');
-            assert.ok(error);
-            assert.ok(error.stack);
-            assert.equal(error.message, 'test error');
+        fatal: function fatal(message, meta) {
+            assert.equal(message, 'Uncaught Exception');
+            assert.ok(meta.error);
+            assert.ok(meta.error.stack);
+            assert.equal(meta.error.message, 'test error');
 
             remove();
             assert.end();
@@ -124,14 +124,14 @@ test('uncaughtException logs to logger', function t(assert) {
     });
 });
 
-test('uncaughtException prefix', function t(assert) {
+test('uncaughtException meta', function t(assert) {
     var logger = {
-        fatal: function fatal(message, error) {
-            assert.equal(message,
-                'some-server: Uncaught Exception: ');
-            assert.ok(error);
-            assert.ok(error.stack);
-            assert.equal(error.message, 'error test');
+        fatal: function fatal(message, meta) {
+            assert.equal(message, 'Uncaught Exception');
+            assert.ok(meta.error);
+            assert.ok(meta.error.stack);
+            assert.equal(meta.error.message, 'error test');
+            assert.equal(meta.testProp, 'testVal');
 
             remove();
             assert.end();
@@ -140,7 +140,9 @@ test('uncaughtException prefix', function t(assert) {
 
     var remove = uncaught({
         logger: logger,
-        prefix: 'some-server: '
+        meta: {
+            testProp: 'testVal'
+        }
     });
 
     process.nextTick(function throwIt() {
@@ -150,12 +152,13 @@ test('uncaughtException prefix', function t(assert) {
 
 test('handles throwing strings', function t(assert) {
     var logger = {
-        fatal: function fatal(message, error) {
+        fatal: function fatal(message, meta) {
             assert.equal(message,
-                'some-server: Uncaught Exception: ');
-            assert.ok(error);
-            assert.ok(error.stack);
-            assert.equal(error.message, 'error test');
+                'Uncaught Exception');
+            assert.ok(meta.error);
+            assert.ok(meta.error.stack);
+            assert.equal(meta.error.message, 'error test');
+            assert.equal(meta.testProp, 'testVal');
 
             remove();
             assert.end();
@@ -164,7 +167,9 @@ test('handles throwing strings', function t(assert) {
 
     var remove = uncaught({
         logger: logger,
-        prefix: 'some-server: '
+        meta: {
+            testProp: 'testVal'
+        }
     });
 
     process.nextTick(function throwIt() {
@@ -174,7 +179,7 @@ test('handles throwing strings', function t(assert) {
 
 test('writes to backupFile on error', function t(assert) {
     var logger = {
-        fatal: function fatal(message, error, cb) {
+        fatal: function fatal(message, meta, cb) {
             cb(new Error('cant log'));
         }
     };
@@ -221,7 +226,7 @@ test('writes to backupFile on error', function t(assert) {
 
 test('calls gracefulShutdown', function t(assert) {
     var logger = {
-        fatal: function fatal(message, error, cb) {
+        fatal: function fatal(message, meta, cb) {
             cb(null);
         }
     };
@@ -283,7 +288,7 @@ test('does not write undefined backupFile', function t(assert) {
         throw new Error('test error');
     });
 
-    function fatal(message, error, cb) {
+    function fatal(message, meta, cb) {
         cb(new Error('oops'));
 
         var folders = fs.readdirSync('/');
@@ -296,7 +301,7 @@ test('does not write undefined backupFile', function t(assert) {
 
 test('handles disk failures', function t(assert) {
     var logger = {
-        fatal: function fatal(message, error, cb) {
+        fatal: function fatal(message, meta, cb) {
             cb(new Error('logger error'));
         }
     };
