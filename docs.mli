@@ -5,7 +5,7 @@ uncaught-exception/uncaught := (options: {
     statsd: {
         immediateIncrement: (String, Number, Callback) =>void
     },
-    prefix?: String,
+    meta?: Object,
     statsdKey?: String,
     statsdWaitPeriod?: Number,
     backupFile?: "stdout" | "stderr" | String,

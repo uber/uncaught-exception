@@ -18,8 +18,14 @@ var spawnChild = require('./lib/spawn-child.js');
 // child process will only exit 128 + 6 if it dumps core
 // to enable core dumps run `ulimit -c unlimited`
 var BACKUP_FILE = path.join(__dirname, 'backupFile.log');
-var SIGABRT_CODE = 'SIGABRT';
+var SIGABRT_SIGNAL = 'SIGABRT';
+var SIGABRT_CODE = 134;
 var SHUTDOWN_TIMEOUT = 50;
+
+function isAbortError(err) {
+    return err.signal === SIGABRT_SIGNAL ||
+        err.code === SIGABRT_CODE;
+}
 
 test('a child process is aborted', function t(assert) {
     spawnChild({
@@ -27,7 +33,7 @@ test('a child process is aborted', function t(assert) {
         message: 'crash cleanly'
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.notEqual(
             stderr.indexOf('Uncaught Exception'), -1);
@@ -45,7 +51,7 @@ test('throwing in preAbort', function t(assert) {
         throwInAbort: true
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.notEqual(
             stderr.indexOf('Uncaught Exception'), -1);
@@ -65,7 +71,7 @@ test('writes to backupFile for failing logger', function t(assert) {
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('crash with file'), -1);
         assert.equal(stderr.indexOf('crash with file'), -1);
@@ -104,7 +110,7 @@ test('writes to stdout with backupFile stdout', function t(assert) {
         backupFile: 'stdout'
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stderr.indexOf('crash with file'), -1);
 
@@ -140,7 +146,7 @@ test('writes to stderr with backupFile stderr', function t(assert) {
         backupFile: 'stderr'
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('crash with file'), -1);
 
@@ -180,7 +186,7 @@ test('async failing logger', function t(assert) {
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('async error logger'), -1);
         assert.equal(stderr.indexOf('async error logger'), -1);
@@ -221,7 +227,7 @@ test('writes to backupFile for failing shutdown', function t(assert) {
         badShutdown: true
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(
             stdout.indexOf('crash with bad shutdown'), -1);
@@ -267,7 +273,7 @@ test('handles a naughty shutdown', function t(assert) {
         naughtyShutdown: true
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(
             stdout.indexOf('crash with naughty shutdown'), -1);
@@ -307,7 +313,7 @@ test('async failing shutdown', function t(assert) {
         asyncBadShutdown: true
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(
             stdout.indexOf('async failing shutdown'), -1);
@@ -354,7 +360,7 @@ test('handles a timeout logger', function t(assert) {
         loggerTimeout: SHUTDOWN_TIMEOUT
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('timeout logger'), -1);
         assert.equal(stderr.indexOf('timeout logger'), -1);
@@ -395,7 +401,7 @@ test('handles a thrown logger', function t(assert) {
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('thrown logger'), -1);
         assert.equal(stderr.indexOf('thrown logger'), -1);
@@ -437,7 +443,7 @@ test('handles a timeout shutdown', function t(assert) {
         shutdownTimeout: SHUTDOWN_TIMEOUT
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('timeout shutdown'), -1);
         assert.equal(stderr.indexOf('timeout shutdown'), -1);
@@ -479,7 +485,7 @@ test('handles a thrown shutdown', function t(assert) {
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('thrown shutdown'), -1);
         assert.equal(stderr.indexOf('thrown shutdown'), -1);
@@ -522,7 +528,7 @@ test('handles a timeout + late succeed', function t(assert) {
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('late timeout logger'), -1);
         assert.equal(stderr.indexOf('late timeout logger'), -1);
@@ -564,7 +570,7 @@ test('handles a shutdown + late succeed', function t(assert) {
         backupFile: loc
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.equal(stdout.indexOf('late shutdown logger'), -1);
         assert.equal(stderr.indexOf('late shutdown logger'), -1);
@@ -708,7 +714,7 @@ test('handles writing to bad file', function t(assert) {
         badShutdown: true
     }, function onerror(err, stdout, stderr) {
         assert.ok(err);
-        assert.equal(err.signal, SIGABRT_CODE);
+        assert.ok(isAbortError(err));
 
         assert.notEqual(
             stderr.indexOf('Uncaught Exception'), -1);
@@ -729,7 +735,7 @@ TestChild.test('crashing with meta', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.ok(
         child.stdout.indexOf('crash with meta') === -1
@@ -759,7 +765,7 @@ TestChild.test('writes stats to UDP server', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.equal(child.lines.length, 1);
 
@@ -777,7 +783,7 @@ TestChild.test('setting a custom statsdKey', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.equal(child.lines.length, 1);
 
@@ -796,7 +802,7 @@ TestChild.test('setting a custom wait period (high)', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.equal(child.lines.length, 1);
 
@@ -815,7 +821,7 @@ TestChild.test('setting a custom wait period (low)', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.equal(child.lines.length, 1);
     assert.equal(child.messages.length, 0);
@@ -830,7 +836,7 @@ TestChild.test('thrown statsd exception', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.equal(child.lines.length, 3);
 
@@ -858,7 +864,7 @@ TestChild.test('statsd implementation times out', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.equal(child.lines.length, 3);
 
@@ -885,7 +891,7 @@ TestChild.test('async statsd callback error', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.equal(child.lines.length, 3);
 
@@ -912,7 +918,7 @@ TestChild.test('async thrown statsd exception', {
     backupFile: BACKUP_FILE
 }, function t(child, assert) {
     assert.ok(child.err);
-    assert.equal(child.err.signal, SIGABRT_CODE);
+    assert.ok(isAbortError(child.err));
 
     assert.equal(child.lines.length, 3);
 

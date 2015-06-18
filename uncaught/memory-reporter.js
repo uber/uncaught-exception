@@ -65,7 +65,7 @@ function markTransition(currentState) {
 };
 
 function UncaughtExceptionConfigValue(opts) {
-    this.prefix = opts.prefix;
+    this.meta = opts.meta;
     this.statsdKey = opts.statsdKey;
     this.backupFile = opts.backupFile;
     this.loggerTimeout = opts.loggerTimeout;
@@ -152,7 +152,7 @@ function reportConfig(uncaught) {
     var self = this;
 
     self.configValue = new structures.UncaughtExceptionConfigValue({
-        prefix: uncaught.prefix,
+        meta: uncaught.meta,
         statsdKey: uncaught.statsdKey,
         backupFile: uncaught.backupFile,
         loggerTimeout: uncaught.loggerTimeout,
