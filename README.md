@@ -24,7 +24,7 @@ var myStatsd = {
 var onError = uncaughtHandler({
     logger: myLogger,
     statsd: myStatsd,
-    prefix: 'some string prefix ',
+    meta: { 'hostname': require('os').hostname() },
     abortOnUncaught: true, // opt into aborting on uncaught
     backupFile: '/path/to/uncaught-handler.log',
     gracefulShutdown: function (callback) {
@@ -58,7 +58,7 @@ uncaught-exception/uncaught := (options: {
     statsd: {
         immediateIncrement: (String, Number, Callback) =>void
     },
-    prefix?: String,
+    meta?: Object,
     statsdKey?: String,
     statsdWaitPeriod?: Number,
     backupFile?: "stdout" | "stderr" | String,
@@ -99,11 +99,11 @@ The `logger` should invoke the `callback` once it's flushed it to
 The `statsd` should invoke the `callback` once it's flushed it
   to the stats service.
 
-#### `options.prefix`
+#### `options.meta`
 
-`options.prefix` allows you to configure a prefix for this
-  uncaught handler. You might want to put the `os.hostname()` in
-  the prefix.
+`options.meta` allows you to configure the meta object that is
+  logged when an uncaught exception occurs. You might want to 
+  put the `os.hostname()` in the meta object.
 
 #### `options.statsdKey`
 
