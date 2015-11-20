@@ -47,6 +47,7 @@ function UncaughtExceptionStruct(stateMachine, states) {
 function UncaughtExceptionStateMachine() {
     this.configValue = null;
     this.uncaughtError = null;
+    this.currentStack = null;
 
     this.transitions = [];
     this.states = {};
@@ -176,6 +177,7 @@ function createStateMachine(error) {
     stateMachine.configValue = self.configValue;
     stateMachine.uncaughtError = error;
     stateMachine.uncaughtErrorType = type;
+    stateMachine.currentStack = new Error('empty').stack;
     ALL_STATES.push(stateMachine);
 
     return stateMachine;
