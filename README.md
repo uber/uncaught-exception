@@ -42,6 +42,56 @@ var onError = uncaughtHandler({
 process.on('uncaughtException', onError)
 ```
 
+## Recommended best practices
+
+For node0.10 and critical services we recommend that you:
+
+ - Use a `statsd` and set up alerts & metrics on "uncaught exceptions"
+ - Use a `logger` and pay attention to any "fatal" logs
+ - Use a `backupFile`, this is gold if your logger has an internal
+    uncaught exception or bug.
+ - Set `abortOnUncaught` to false. Uncaught exceptions are bad but
+    no availability is worse, where possible you want to avoid the
+    absolute worse case of "spin crashing" and continue on exceptions
+    for partial availability, even if that means data corruption.
+
+### Continueing on exceptions is bad
+
+Generally the nodejs documentation recommends against continuing in
+an undefined state as it can cause cascading failures.
+
+This is completely correct, however having the system restart itself
+in an automatic fashion causes a different failure mode that's worse.
+Generally partial availability trumps all.
+
+However, uncaught exceptions are serious. You should page the oncall,
+even in the middle of the night. The on call is responsible for taking
+an action whether that's mitigation, failover or restarting the worker.
+However the on call must ALWAYS restart the worker.
+
+### Implementing an abort trap
+
+If you want to partially automate the restarting of workers then I
+would recommend you implement something like:
+
+ - Have your application start in `ABORT` mode, where `abortOnUncaught`
+    is true.
+ - Once it aborts, have the parent or the supervisor recognise that
+    it has crashed and will remember to start the application in `NOT_ABORT`
+    mode for the next 24 hours
+
+By implementing an improved supervisor you can "throttle" the amount of
+process aborts that happen, this allows a single restart in the common
+case without manual intervention and maintains partial availability during
+a "spin crash" or "high volume uncaught" scenario.
+
+### How to use the `gracefulShutdown` handler
+
+The `gracefulShutdown` handler is really a pre-abort asynchronous
+hook used to co-ordinate with your routing infrastructure, for
+example you may want HAProxy to remove you from the pool or you
+may want to more gently leave a `ringpop` instance.
+
 ## Docs
 
 ### Type definitions
