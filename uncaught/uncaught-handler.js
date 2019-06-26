@@ -107,7 +107,9 @@ function invokeLoggerFatal() {
     var type = error.type || '';
     var meta = extend({
         type: type,
-        error: error
+        error: error,
+        errorMessage: error.message,
+        errorStack: error.stack
     }, self.uncaught.meta);
 
     self.currentState = Constants.LOGGING_ERROR_STATE;
