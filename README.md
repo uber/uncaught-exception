@@ -55,7 +55,7 @@ For node0.10 and critical services we recommend that you:
     absolute worse case of "spin crashing" and continue on exceptions
     for partial availability, even if that means data corruption.
 
-### Continueing on exceptions is bad
+### Continuing on exceptions is bad
 
 Generally the nodejs documentation recommends against continuing in
 an undefined state as it can cause cascading failures.
